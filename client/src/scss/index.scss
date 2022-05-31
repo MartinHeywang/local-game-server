@@ -1,0 +1,15 @@
+@use "reset.scss";
+
+@use "colors" as clr;
+
+html,
+body {
+    min-height: 100vh;
+}
+
+body {
+    background-color: clr.$neutral-200;
+    color: clr.$neutral-900;
+
+    font-family: sans-serif;
+}

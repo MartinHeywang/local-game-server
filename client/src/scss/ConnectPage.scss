@@ -1,0 +1,32 @@
+@use "colors" as clr;
+
+.ConnectPage {
+    display: grid;
+    place-items: center;
+
+    min-height: 100vh;
+}
+
+.ConnectPage__form {
+    display: flex;
+    flex-direction: column;
+    gap: .5em;
+
+    padding: 1em;
+    background-color: clr.$neutral-100;
+
+    font-size: 1.1rem;
+
+    box-shadow: .5em .5em 0 0 clr.$primary-500;
+}
+
+.ConnectPage__submit {
+    border: 0;
+    background-color: clr.$primary-500;
+
+    margin-top: 1em;
+    padding: .5em 1em;
+
+    color: clr.$neutral-900;
+    font-weight: bold;
+}
