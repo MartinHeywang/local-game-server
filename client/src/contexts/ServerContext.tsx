@@ -8,9 +8,11 @@ export type Connection = {
     url: string;
 };
 
-export type ContextValue = { connection: Connection | null; connect: (pin: string) => Promise<void> };
+export const PIN_LENGTH = 10;
 
-const ServerContext = React.createContext<ContextValue>({ connection: null, connect: () => new Promise<void>(() => {}) });
+export type ContextValue = { connection: Connection | null; connect: (pin: string) => void };
+
+const ServerContext = React.createContext<ContextValue>({ connection: null, connect: () => {} });
 const { Provider, Consumer } = ServerContext;
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -23,8 +25,8 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
             "color: unset"
         );
 
-        if (pin.length !== 10) {
-            throw new Error("The length of the PIN of the server must be composed 10 characters.");
+        if (pin.length !== PIN_LENGTH) {
+            throw new Error(`The length of the PIN of the server must be composed ${PIN_LENGTH} characters.`);
         }
         if (!/^[0-9]+$/.test(pin)) {
             throw new Error("The PIN of the server should only be composed of digits.");

@@ -29,4 +29,18 @@
 
     color: clr.$neutral-900;
     font-weight: bold;
+
+    &:hover {
+        cursor: pointer;
+        filter: brightness(80%);
+    }
+
+    &:focus-visible {
+        outline: 1px solid clr.$primary-500;
+        outline-offset: 1px;
+    }
+
+    &:disabled {
+        pointer-events: none;
+    }
 }
