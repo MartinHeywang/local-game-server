@@ -20,6 +20,33 @@
     box-shadow: .5em .5em 0 0 clr.$primary-500;
 }
 
+.ConnectPage__input-box {
+    display: flex;
+    gap: .3em;
+
+    margin: .5em 0;
+    padding: 0;
+
+    & > input {
+        flex-basis: 100%;
+    }
+}
+
+.ConnectPage__input {
+    border: 0;
+
+    font: inherit;
+
+    &:hover {
+        filter: brightness(80%);
+    }
+
+    &:focus {
+        outline: 1px solid clr.$primary-500;
+        outline-offset: 1px;
+    }
+}
+
 .ConnectPage__submit {
     border: 0;
     background-color: clr.$primary-500;

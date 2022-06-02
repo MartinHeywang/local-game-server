@@ -2,17 +2,14 @@ import React, { FC, useContext, useEffect, useState } from "react";
 
 export type Connection = {
     pin: string;
-    port: number;
-    thirdIPValue: number;
-    fourthIPValue: number;
+    ip: [number, number, number, number, number];
     url: string;
+    connectionTime: Date;
 };
 
-export const PIN_LENGTH = 10;
+export type ContextValue = { connection: Connection | null; connect: (pin: string) => Promise<Connection | null> };
 
-export type ContextValue = { connection: Connection | null; connect: (pin: string) => void };
-
-const ServerContext = React.createContext<ContextValue>({ connection: null, connect: () => {} });
+const ServerContext = React.createContext<ContextValue>({ connection: null, connect: async () => null });
 const { Provider, Consumer } = ServerContext;
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
@@ -25,38 +22,33 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
             "color: unset"
         );
 
-        if (pin.length !== PIN_LENGTH) {
-            throw new Error(`The length of the PIN of the server must be composed ${PIN_LENGTH} characters.`);
-        }
-        if (!/^[0-9]+$/.test(pin)) {
-            throw new Error("The PIN of the server should only be composed of digits.");
-        }
-
-        const port = parseInt(pin.substring(0, 4));
-        const thirdIPValue = parseInt(pin.substring(4, 7));
-        const fourthIPValue = parseInt(pin.substring(7));
-
-        const url = `http://192.168.${thirdIPValue}.${fourthIPValue}:${port}`;
-
-        console.log(`Base URL: %c"${url}"`, "color: lightblue");
-
+        // remove the # at the beginning and split between the dots
         try {
+            const ipString = pin.substring(1);
+            const ip = ipString.split(".").map(part => parseInt(part));
+
+            // 5 = IPv4 normal length + port value
+            if (ip.length !== 5) throw new Error(`Invalid PIN format`);
+
+            const url = `http://${ip[0]}.${ip[1]}.${ip[2]}.${ip[3]}:${ip[4]}`;
+
+            console.log(`Server base url: %c"${url}"`, "color: lightblue");
+
             const endpoint = `${url}/check-connection`;
+            await fetch(endpoint).then(res => res.ok);
 
-            await fetch(endpoint).then(res => res);
-
-            const newConnection = {
+            const newConnection: Connection = {
                 pin,
-                port,
-                thirdIPValue,
-                fourthIPValue,
+                ip: ip as Connection["ip"],
                 url,
+                connectionTime: new Date(),
             };
 
             setConnection(newConnection);
 
             return newConnection;
-        } catch (err) {
+        } catch (err: any) {
+            console.log(`Caught error while trying to connect to server %c${pin}`, "color: lightblue");
             console.log(err);
 
             return null;

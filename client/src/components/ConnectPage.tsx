@@ -1,36 +1,39 @@
 import React, { FC, useRef } from "react";
-import { PIN_LENGTH, useServerConnection } from "../contexts/ServerContext";
+import { useNavigate } from "react-router-dom";
+import { useServerConnection } from "../contexts/ServerContext";
 
 import "../scss/ConnectPage.scss";
 
 const ConnectPage: FC = () => {
-    const submitBtn = useRef<HTMLButtonElement>(null);
     const pinField = useRef<HTMLInputElement>(null);
 
     const { connect } = useServerConnection();
+    const navigate = useNavigate();
 
     function submit(event: React.FormEvent) {
         event.preventDefault();
         if (!pinField.current) return;
 
-        connect(pinField.current.value);
+        connect("#" + pinField.current.value).then(_ => {
+            navigate("/players");
+        });
     }
 
     return (
         <div className="ConnectPage">
             <form className="ConnectPage__form" onSubmit={submit}>
                 <label>Entre le PIN du serveur:</label>
-                <input
-                    ref={pinField}
-                    type="text"
-                    id="connect-page-form-pin"
-                    onChange={event =>
-                        (submitBtn.current!.disabled =
-                            event.target.value.length === PIN_LENGTH ? false : true)
-                    }
-                />
+                <div className="ConnectPage__input-box">
+                    #
+                    <input
+                        ref={pinField}
+                        type="text"
+                        id="connect-page-form-pin"
+                        className="ConnectPage__input"
+                    />
+                </div>
 
-                <button ref={submitBtn} className="ConnectPage__submit" id="connect-page-form-id">
+                <button className="ConnectPage__submit" id="connect-page-form-id">
                     Valider
                 </button>
             </form>

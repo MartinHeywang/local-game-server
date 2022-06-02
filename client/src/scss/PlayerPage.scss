@@ -1,0 +1,21 @@
+.PlayersPage__players {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: auto;
+    grid-auto-columns: 1em;
+
+    padding: 0;
+    margin: 1.5em 0;
+}
+
+.PlayersPage__join-form {
+    display: flex;
+    // flex-direction: column;
+    gap: .5em;
+
+    margin: 1em 0;
+}
+
+.PlayersPage__join-form-error {
+    color: red;
+}
