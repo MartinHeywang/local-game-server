@@ -1,13 +1,14 @@
-.Player {
+.CPlayer {
     display: flex;
     align-items: center;
     gap: 2em;
 
     padding: .5em 1em;
-    background-color: rgba(0, 0, 0, .3);
+    background-color: #171717;
+    border-radius: .5em;
 }
 
-.Player__avatar {
+.CPlayer__avatar {
     border-radius: 5px;
     aspect-ratio: 1 / 1;
     max-width: 3em;

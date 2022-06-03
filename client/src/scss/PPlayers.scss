@@ -1,14 +1,23 @@
-.PlayersPage__players {
+.PPlayers h2 {
+    margin: 1em 0;
+}
+
+.PPlayers__players {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-auto-rows: auto;
     grid-auto-columns: 1em;
+    gap: 1em;
 
     padding: 0;
     margin: 1.5em 0;
 }
 
-.PlayersPage__join-form {
+.PPlayers__no-player {
+    margin: 1.5em 0;
+}
+
+.PPlayers__join-form {
     display: flex;
     // flex-direction: column;
     gap: .5em;
@@ -16,6 +25,6 @@
     margin: 1em 0;
 }
 
-.PlayersPage__join-form-error {
+.PPlayers__join-form-error {
     color: red;
 }

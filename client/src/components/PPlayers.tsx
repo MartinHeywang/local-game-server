@@ -3,16 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useServerConnection } from "../contexts/ServerContext";
 
 import Page from "./Page";
-import Player from "./Player";
+import CPlayer from "./CPlayer";
 
-import "../scss/PlayerPage.scss";
+import { Player } from "../contexts/PlayerContext";
 
-interface Player {
-    id: string;
-    ip: string;
-    username: string;
-    connectionTime: Date;
-}
+import "../scss/PPlayers.scss";
 
 const PlayersPage: FC = () => {
     const navigate = useNavigate();
@@ -66,7 +61,7 @@ const PlayersPage: FC = () => {
         })
             .then(res => {
                 // throw the Response if !ok
-                if(!res.ok) throw res;
+                if (!res.ok) throw res;
                 return res.json();
             })
             .then(json => {
@@ -76,36 +71,39 @@ const PlayersPage: FC = () => {
             .catch(err => {
                 // looks ridiculous...
                 // but matches all external errors
-                if(err instanceof Error) {
-                    errorParagraph.current!.textContent = "Erreur interne."
+                if (err instanceof Error) {
+                    errorParagraph.current!.textContent = "Erreur interne.";
                 }
 
                 // if the server returned an error
-                if(err instanceof Response) {
+                if (err instanceof Response) {
                     err.json().then(error => {
                         errorParagraph.current!.textContent = error.message;
-                    })
+                    });
                 }
             });
     }
 
     return (
-        <Page>
-            <h1 className="PlayersPage__title">Joueurs</h1>
-            <h2>Joueurs connectés</h2>
-            {players.length >= 1 ? <ul className="PlayersPage__players">
-                {players.map(player => {
-                    return <Player player={player} key={player.id}></Player>
-                })}
-            </ul> : <p>Aucun joueur n'a rejoint la partie actuellement.</p>}
-
+        <Page className="PPlayers">
+            <h1 className="PPlayers__title">Joueurs</h1>
             <h2>Rejoindre</h2>
-            <form className="PlayersPage__join-form" onSubmit={join}>
+            <form className="PPlayers__join-form" onSubmit={join}>
                 <label htmlFor="players-page-join-form-username">Pseudo:</label>
                 <input type="text" id="players-page-join-form-username" ref={usernameField} />
                 <button>Rejoindre!</button>
             </form>
-            <p className="PlayersPage__join-form-error" ref={errorParagraph}></p>
+            <p className="PPlayers__join-form-error" ref={errorParagraph}></p>
+            <h2>Joueurs connectés ({players.length})</h2>
+            {players.length >= 1 ? (
+                <ul className="PPlayers__players">
+                    {players.map(player => {
+                        return <CPlayer player={player} key={player.id}></CPlayer>;
+                    })}
+                </ul>
+            ) : (
+                <p className="PPlayers__no-player">Aucun joueur n'a rejoint la partie actuellement.</p>
+            )}
         </Page>
     );
 };
