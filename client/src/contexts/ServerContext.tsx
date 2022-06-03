@@ -17,9 +17,8 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
     async function connect(pin: string) {
         console.log(
-            `Trying to connect with server... (PIN: %c${pin}%c)`,
-            "color: lightblue",
-            "color: unset"
+            `Tentative de connexion au serveur %c${pin}`,
+            "color: lightblue"
         );
 
         // remove the # at the beginning and split between the dots
@@ -28,14 +27,14 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
             const ip = ipString.split(".").map(part => parseInt(part));
 
             // 5 = IPv4 normal length + port value
-            if (ip.length !== 5) throw new Error(`Invalid PIN format`);
+            if (ip.length !== 5) throw new Error(`PIN invalide`);
 
             const url = `http://${ip[0]}.${ip[1]}.${ip[2]}.${ip[3]}:${ip[4]}`;
 
-            console.log(`Server base url: %c"${url}"`, "color: lightblue");
+            console.log(`URL du serveur: %c"${url}"`, "color: lightblue");
 
-            const endpoint = `${url}/check-connection`;
-            await fetch(endpoint).then(res => res.ok);
+            const ok = await fetch(url).then(res => res.ok);
+            if(!ok) throw new Error("Serveur indisponible.")
 
             const newConnection: Connection = {
                 pin,

@@ -34,7 +34,7 @@ const PlayersPage: FC = () => {
 
         (async () => {
             try {
-                const response = await fetch(`${connection.url}/watch-players`);
+                const response = await fetch(`${connection.url}/players/watch`);
                 if (!response.ok) throw Error(response.statusText);
 
                 for (const reader = response.body!.getReader(); ; ) {
@@ -56,7 +56,7 @@ const PlayersPage: FC = () => {
 
         const username = usernameField.current!.value;
 
-        fetch(`${connection!.url}/register-player`, {
+        fetch(`${connection!.url}/players/add`, {
             method: "POST",
             headers: {
                 Accept: "application/json",
