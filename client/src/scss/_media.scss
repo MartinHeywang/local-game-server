@@ -1,0 +1,13 @@
+$bp: 45em;
+
+@mixin for-desktop {
+    @media screen and (min-width: $bp) {
+        @content;
+    }
+}
+
+@mixin for-mobile {
+    @media screen and (min-width: calc($bp - 1px)) {
+        @content;
+    }
+}

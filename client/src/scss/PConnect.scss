@@ -1,30 +1,39 @@
 @use "colors" as clr;
 
-.PConnect {
+.PConnect > .Page__container {
     display: grid;
     place-items: center;
+}
 
-    min-height: 100vh;
+.PConnect__content {
+    max-width: 400px;
+
+    padding: 1em;
+    background-color: clr.$neutral-100;
+}
+
+.PConnect__errors {
+    color: red;
+    font-size: .9rem;
 }
 
 .PConnect__form {
     display: flex;
     flex-direction: column;
-    gap: .5em;
-
-    padding: 1em;
-    background-color: clr.$neutral-100;
+    gap: 0.5em;
 
     font-size: 1.1rem;
 
-    box-shadow: .5em .5em 0 0 clr.$primary-500;
+    label {
+        font-size: 1.1em;
+    }
 }
 
 .PConnect__input-box {
     display: flex;
-    gap: .3em;
+    gap: 0.3em;
 
-    margin: .5em 0;
+    margin: 0.5em 0;
     padding: 0;
 
     & > input {
@@ -52,7 +61,7 @@
     background-color: clr.$primary-500;
 
     margin-top: 1em;
-    padding: .5em 1em;
+    padding: 0.5em 1em;
 
     color: clr.$neutral-900;
     font-weight: bold;
@@ -69,5 +78,17 @@
 
     &:disabled {
         pointer-events: none;
+    }
+}
+
+.PConnect hr {
+    margin: 1.5em 0;
+}
+
+.PConnect__already-connected {
+    font-size: 0.9rem;
+
+    .PConnect__server-pin {
+        color: clr.$primary-500;
     }
 }
