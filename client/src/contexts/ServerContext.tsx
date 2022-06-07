@@ -1,4 +1,5 @@
 import React, { FC, useContext, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 
 export type Connection = {
     pin: string;
@@ -20,8 +21,11 @@ const CONNECTION_STORAGE_KEY = "server-connection";
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     const [connection, setConnection] = useState<Connection | null | undefined>();
 
+    const [urlParams] = useSearchParams();
+
     useEffect(() => {
         if (connection) return;
+        if (urlParams.has("pin")) return;
 
         const storageValue = localStorage.getItem(CONNECTION_STORAGE_KEY);
         if (!storageValue) return;
@@ -34,7 +38,28 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     }, []);
 
     useEffect(() => {
-        if(connection === undefined) return;
+        if (connection) return;
+
+        console.log("trying to connect to server trough url search param");
+
+        const pin = urlParams.get("pin");
+        if (pin === null) return;
+
+        console.log(`Pin: ${pin}`);
+
+        try {
+            const newConnection = createConnectionObjFromPin(pin);
+            console.log(newConnection);
+
+            checkConnection(newConnection).then(valid => {
+                if (!valid) return;
+                setConnection(newConnection);
+            });
+        } catch {}
+    }, []);
+
+    useEffect(() => {
+        if (connection === undefined) return;
 
         localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(connection));
     }, [connection]);
@@ -55,8 +80,9 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         }
     }
 
-    async function connect(pin: string) {
-        console.log(`Tentative de connexion au serveur %c${pin}`, "color: lightblue");
+    function createConnectionObjFromPin(pin: string) {
+
+        if(pin.charAt(0) !== "#") throw new Error("A pin should start with a '#'");
 
         // remove the # at the beginning and split between the dots
         const ipString = pin.substring(1);
@@ -67,14 +93,22 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
         const url = `http://${ip[0]}.${ip[1]}.${ip[2]}.${ip[3]}:${ip[4]}`;
 
-        console.log(`URL du serveur: %c"${url}"`, "color: lightblue");
-
         const newConnection: Connection = {
             pin,
             ip: ip as Connection["ip"],
             url,
             connectionTime: new Date(),
         };
+
+        return newConnection;
+    }
+
+    async function connect(pin: string) {
+        console.log(`Tentative de connexion au serveur %c${pin}`, "color: lightblue");
+
+        const newConnection = createConnectionObjFromPin(pin);
+
+        console.log(`URL du serveur: %c"${newConnection.url}"`, "color: lightblue");
 
         if (await checkConnection(newConnection)) setConnection(newConnection);
 
