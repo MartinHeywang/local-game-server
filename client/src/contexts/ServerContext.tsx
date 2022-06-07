@@ -8,7 +8,7 @@ export type Connection = {
 };
 
 export type ContextValue = {
-    connection: Connection | null;
+    connection: Connection | null | undefined;
     connect: (pin: string) => Promise<Connection | null>;
 };
 
@@ -18,26 +18,28 @@ const { Provider, Consumer } = ServerContext;
 const CONNECTION_STORAGE_KEY = "server-connection";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
-    const [connection, setConnection] = useState<Connection | null>(null);
+    const [connection, setConnection] = useState<Connection | null | undefined>();
 
     useEffect(() => {
         if (connection) return;
 
-        (async () => {
-            const storageValue = localStorage.getItem(CONNECTION_STORAGE_KEY);
-            if (!storageValue) return;
-            const storedConnection: Connection = JSON.parse(storageValue);
+        const storageValue = localStorage.getItem(CONNECTION_STORAGE_KEY);
+        if (!storageValue) return;
+        const storedConnection: Connection = JSON.parse(storageValue);
 
-            if (await checkConnection(storedConnection)) setConnection(connection);
-        })();
+        checkConnection(storedConnection).then(valid => {
+            if (valid) setConnection(storedConnection);
+            else localStorage.removeItem(CONNECTION_STORAGE_KEY);
+        });
     }, []);
 
     useEffect(() => {
+        if(connection === undefined) return;
+
         localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(connection));
     }, [connection]);
 
     async function checkConnection(connection: Connection) {
-
         // 7 seconds timeout - 30 is too long
         const timeoutController = new AbortController();
         const timeout = setTimeout(() => timeoutController.abort(), 7_000);
@@ -74,7 +76,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
             connectionTime: new Date(),
         };
 
-        if(await checkConnection(newConnection)) setConnection(newConnection);
+        if (await checkConnection(newConnection)) setConnection(newConnection);
 
         return newConnection;
     }

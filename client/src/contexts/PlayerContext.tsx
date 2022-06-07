@@ -9,11 +9,12 @@ export interface Player {
 }
 
 // special kind of player that has a "private key"
-// this private key is given to the client that made the request to join and never given elsewhere
+// this private key is given to the client that made the request to join and is never given elsewhere
+// used for sensitive actions / actions that can only be done from himself
 type OwnPlayer = Player & { privateKey: string };
 
 interface ContextValue {
-    player: Player | null;
+    player: Player | null | undefined;
     join: (username: string) => Promise<void>;
     edit: (username: string) => Promise<void>;
     quit: () => Promise<void>;
@@ -30,7 +31,7 @@ const { Provider, Consumer } = PlayerContext;
 export const PLAYER_STORAGE_KEY = "player";
 
 const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [player, setPlayer] = useState<OwnPlayer | null>(null);
+    const [player, setPlayer] = useState<OwnPlayer | null | undefined>();
     const { connection } = useServerConnection();
 
     // fetch an existing player from the local storage
@@ -42,14 +43,32 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         if (!storageValue) return;
 
         const storedPlayer: OwnPlayer = JSON.parse(storageValue);
+        if(!storedPlayer) return;
+
+        console.log("stored player:");
+        console.log(storedPlayer);
 
         fetch(`${connection!.url}/players/get-from-id/${storedPlayer.id}`).then(res => {
-            if (!res.ok) return;
+            if (!res.ok) throw res;
+
             setPlayer(storedPlayer);
-        });
-    }, []);
+        }).catch(err => {
+            if(err instanceof Response) {
+                const res = err;
+                
+                if(res.status === 404) {
+                    localStorage.removeItem(PLAYER_STORAGE_KEY);
+                }
+            }
+        })
+    }, [connection]);
 
     useEffect(() => {
+        if(player === undefined) return;
+
+        console.log("updating local storage player to:")
+        console.log(player);
+
         localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(player));
     }, [player]);
 
@@ -58,6 +77,7 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
             if(!player) return;
 
             // putting whatever in here makes the tab closing confirmation box show up
+            // be happy!
             event.returnValue = "(^_^)";
         }
 

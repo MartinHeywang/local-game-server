@@ -100,12 +100,12 @@ const PlayersPage: FC = () => {
         <Page className="PPlayers">
             <h1 className="PPlayers__title">Joueurs</h1>
             <h2>Rejoindre</h2>
-            <form className="PPlayers__join-form" onSubmit={event => player === null ? submitJoin(event) : submitEdit(event)}>
+            <form className="PPlayers__join-form" onSubmit={event => !player ? submitJoin(event) : submitEdit(event)}>
                 <label htmlFor="players-page-join-form-username">Pseudo:</label>
                 <input type="text" id="players-page-join-form-username" ref={usernameField} />
                 <button>{!player ? "Rejoindre!" : "Changer"}</button>
             </form>
-            {player !== null && <button onClick={quit}>Quitter</button>}
+            {player && <button onClick={quit}>Quitter</button>}
             <p className="PPlayers__join-form-error" ref={errorParagraph}></p>
             <h2>Joueurs connectés ({players.length})</h2>
             {players.length >= 1 ? (

@@ -41,7 +41,7 @@ function getFromID(req: Request, res: Response) {
 
     const player = players().find(player => player.id === id);
     if (!player) {
-        res.status(400).json({ message: "Aucun joueur ne porte cet ID." });
+        res.status(404).json({ message: "Aucun joueur ne porte cet ID." });
         return;
     }
 
@@ -53,7 +53,7 @@ function getFromIP(req: Request, res: Response) {
 
     const player = players().find(player => player.ip === ip);
     if (!player) {
-        res.status(400).json({ message: "Aucun joueur ne porte cette adresse IP." });
+        res.status(404).json({ message: "Aucun joueur ne porte cette adresse IP." });
         return;
     }
 
