@@ -14,7 +14,7 @@ const PlayersPage: FC = () => {
     const { connection } = useServerConnection();
     const [players, setPlayers] = useState<Player[]>([]);
 
-    const { player, join, edit, quit } = usePlayer();
+    const { player, join, edit, toggleReady, quit } = usePlayer();
 
     const usernameField = useRef<HTMLInputElement>(null);
     const errorParagraph = useRef<HTMLParagraphElement>(null);
@@ -54,33 +54,12 @@ const PlayersPage: FC = () => {
         errorParagraph.current.textContent = "";
     }, [player])
 
-    function submitJoin(event: React.FormEvent) {
+    function submit(type: "join" | "edit", event: React.FormEvent) {
         event.preventDefault();
 
         const username = usernameField.current!.value;
 
-        join(username).catch(err => {
-            // looks ridiculous...
-            // but matches all external errors (e.g NetworkError)
-            if (err instanceof Error) {
-                errorParagraph.current!.textContent = "Erreur interne.";
-            }
-
-            // if the server returned an error
-            if (err instanceof Response) {
-                err.json().then(error => {
-                    errorParagraph.current!.textContent = error.message;
-                });
-            }
-        });
-    }
-
-    function submitEdit(event: React.FormEvent) {
-        event.preventDefault();
-
-        const username = usernameField.current!.value;
-
-        edit(username).catch(err => {
+        (type === "join" ? join : edit)(username).catch(err => {
             // looks ridiculous...
             // but matches all external errors (e.g NetworkError)
             if (err instanceof Error) {
@@ -100,18 +79,19 @@ const PlayersPage: FC = () => {
         <Page className="PPlayers">
             <h1 className="PPlayers__title">Joueurs</h1>
             <h2>Rejoindre</h2>
-            <form className="PPlayers__join-form" onSubmit={event => !player ? submitJoin(event) : submitEdit(event)}>
+            <form className="PPlayers__join-form" onSubmit={event => !player ? submit("join", event) : submit("edit", event)}>
                 <label htmlFor="players-page-join-form-username">Pseudo:</label>
                 <input type="text" id="players-page-join-form-username" ref={usernameField} />
                 <button>{!player ? "Rejoindre!" : "Changer"}</button>
             </form>
             {player && <button onClick={quit}>Quitter</button>}
+            {player && <button onClick={toggleReady}>{player.status === "idling" ? "Prêt à jouer!" : "Pas prêt"}</button>}
             <p className="PPlayers__join-form-error" ref={errorParagraph}></p>
             <h2>Joueurs connectés ({players.length})</h2>
             {players.length >= 1 ? (
                 <ul className="PPlayers__players">
                     {players.map(player => {
-                        return <CPlayer player={player} key={player.id}></CPlayer>;
+                        return <CPlayer player={player} key={player.id}/>;
                     })}
                 </ul>
             ) : (

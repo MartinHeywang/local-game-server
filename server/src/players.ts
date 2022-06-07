@@ -8,6 +8,7 @@ interface Player {
     username: string;
     connectionTime: Date;
     privateKey: string | undefined;
+    status: "idling" | "ready" | "playing";
 }
 
 const [players, setPlayers, addPlayersListener, rmPlayersListener] = initListenableValue<Player[]>([]);
@@ -89,6 +90,7 @@ function join(req: Request, res: Response) {
         ip: req.ip,
         // only place where the private key is generated & sent to the client
         privateKey: uuidv4(),
+        status: "idling",
     };
 
     setPlayers(old => old.concat([player]));
@@ -117,6 +119,31 @@ function edit(req: Request, res: Response) {
     res.sendStatus(200);
 }
 
+function changePlayerStatus(newStatus: Player["status"], req: Request, res: Response) {
+    const { privateKey: key } = req.body;
+    let changed = false;
+
+    setPlayers(old => old.map(player => {
+        if(player.privateKey !== key) return player;
+
+        changed = true;
+
+        return {
+            ...player,
+            status: newStatus,
+        }
+    }));
+
+    // the list has not changed, so we deduce that the player was not found (given key is non-existing)
+    if(!changed) {
+        res.sendStatus(404);
+        return;
+    }
+
+    const editedPlayer = players().find(player => player.privateKey === key)!;
+    res.status(200).json(secure(editedPlayer));
+}
+
 function quit(req: Request, res: Response) {
     const { privateKey } = req.body;
 
@@ -140,6 +167,16 @@ export const playersRouter = express
     .get("/get-from-ip/:ip", getFromIP)
     .post("/join", join)
     .post("/edit", edit)
+    .post("/add-to-waitlist", (req, res) => changePlayerStatus("ready", req, res))
+    .post("/remove-from-waitlist", (req, res) => changePlayerStatus("idling", req, res))
     .delete("/quit", quit);
 
 export { players as getPlayers, addPlayersListener, rmPlayersListener };
+
+addPlayersListener(players => {
+    const onWaitlist = players.filter(player => player.status === "ready");
+    // minimum two ready players are required to start a game
+    if(onWaitlist.length < 2) return;
+
+    console.log("enough players are on the waitlist to start a game");
+})

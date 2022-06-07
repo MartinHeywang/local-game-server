@@ -6,6 +6,7 @@ export interface Player {
     ip: string;
     username: string;
     connectionTime: Date;
+    status: "idling" | "ready" | "playing";
 }
 
 // special kind of player that has a "private key"
@@ -17,6 +18,7 @@ interface ContextValue {
     player: Player | null | undefined;
     join: (username: string) => Promise<void>;
     edit: (username: string) => Promise<void>;
+    toggleReady: () => Promise<void>;
     quit: () => Promise<void>;
 }
 
@@ -24,6 +26,7 @@ const PlayerContext = React.createContext<ContextValue>({
     player: null,
     join: async () => {},
     edit: async () => {},
+    toggleReady: async () => {},
     quit: async () => {},
 });
 const { Provider, Consumer } = PlayerContext;
@@ -31,6 +34,7 @@ const { Provider, Consumer } = PlayerContext;
 export const PLAYER_STORAGE_KEY = "player";
 
 const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
+    
     const [player, setPlayer] = useState<OwnPlayer | null | undefined>();
     const { connection } = useServerConnection();
 
@@ -43,30 +47,32 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         if (!storageValue) return;
 
         const storedPlayer: OwnPlayer = JSON.parse(storageValue);
-        if(!storedPlayer) return;
+        if (!storedPlayer) return;
 
         console.log("stored player:");
         console.log(storedPlayer);
 
-        fetch(`${connection!.url}/players/get-from-id/${storedPlayer.id}`).then(res => {
-            if (!res.ok) throw res;
+        fetch(`${connection!.url}/players/get-from-id/${storedPlayer.id}`)
+            .then(res => {
+                if (!res.ok) throw res;
 
-            setPlayer(storedPlayer);
-        }).catch(err => {
-            if(err instanceof Response) {
-                const res = err;
-                
-                if(res.status === 404) {
-                    localStorage.removeItem(PLAYER_STORAGE_KEY);
+                setPlayer(storedPlayer);
+            })
+            .catch(err => {
+                if (err instanceof Response) {
+                    const res = err;
+
+                    if (res.status === 404) {
+                        localStorage.removeItem(PLAYER_STORAGE_KEY);
+                    }
                 }
-            }
-        })
+            });
     }, [connection]);
 
     useEffect(() => {
-        if(player === undefined) return;
+        if (player === undefined) return;
 
-        console.log("updating local storage player to:")
+        console.log("updating local storage player to:");
         console.log(player);
 
         localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(player));
@@ -74,7 +80,7 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 
     useEffect(() => {
         function handler(event: BeforeUnloadEvent) {
-            if(!player) return;
+            if (!player) return;
 
             // putting whatever in here makes the tab closing confirmation box show up
             // be happy!
@@ -115,6 +121,29 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         });
     }
 
+    async function toggleReady() {
+        if (!player) return;
+        if(player.status === "playing") return;
+
+        fetch(`${connection!.url}/players/${player.status === "idling" ? "add-to" : "remove-from"}-waitlist`, {
+            method: "POST",
+            headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ privateKey: player.privateKey }),
+        })
+            .then(res => {
+                if (!res.ok) throw res;
+                return res.json() as Promise<Player>;
+            })
+            .then(json => {
+                setPlayer(old => {
+                    return { ...old, ...json } as OwnPlayer;
+                });
+            });
+    }
+
     async function quit() {
         if (!player) return;
 
@@ -131,7 +160,7 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         });
     }
 
-    return <Provider value={{ player, join, edit, quit }}>{children}</Provider>;
+    return <Provider value={{ player, join, edit, toggleReady, quit }}>{children}</Provider>;
 };
 
 const usePlayer = () => useContext(PlayerContext);
