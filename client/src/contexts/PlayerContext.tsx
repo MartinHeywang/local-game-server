@@ -14,6 +14,11 @@ export interface Player {
 // used for sensitive actions / actions that can only be done from himself
 type OwnPlayer = Player & { privateKey: string };
 
+export interface Game {
+    id: string;
+    playersId: string[];
+}
+
 interface ContextValue {
     player: Player | null | undefined;
     join: (username: string) => Promise<void>;
@@ -34,9 +39,8 @@ const { Provider, Consumer } = PlayerContext;
 export const PLAYER_STORAGE_KEY = "player";
 
 const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
-    
     const [player, setPlayer] = useState<OwnPlayer | null | undefined>();
-    const { connection } = useServerConnection();
+    const { connection, openSocket, closeSocket } = useServerConnection();
 
     // fetch an existing player from the local storage
     useEffect(() => {
@@ -91,6 +95,18 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         return () => window.removeEventListener("beforeunload", handler);
     }, []);
 
+    useEffect(() => {
+        if (!player) return;
+        // status was previously in "ready" so there is no need to do anything
+        if (player.status === "playing") return;
+
+        if (player.status === "idling") {
+            openSocket(player.id);
+        } else {
+            closeSocket();
+        }
+    }, [player?.status]);
+
     async function join(username: string) {
         const res = await fetch(`${connection!.url}/players/join`, {
             method: "POST",
@@ -123,23 +139,29 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 
     async function toggleReady() {
         if (!player) return;
-        if(player.status === "playing") return;
+        if (player.status === "playing") return;
 
-        fetch(`${connection!.url}/players/${player.status === "idling" ? "add-to" : "remove-from"}-waitlist`, {
-            method: "POST",
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ privateKey: player.privateKey }),
-        })
+        fetch(
+            `${connection!.url}/players/${
+                player.status === "idling" ? "add-to" : "remove-from"
+            }-waitlist`,
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ privateKey: player.privateKey }),
+            }
+        )
             .then(res => {
                 if (!res.ok) throw res;
-                return res.json() as Promise<Player>;
+                return res.json();
             })
             .then(json => {
+                const [player, game] = json as [Player, any];
                 setPlayer(old => {
-                    return { ...old, ...json } as OwnPlayer;
+                    return { ...old, ...player } as OwnPlayer;
                 });
             });
     }

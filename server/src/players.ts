@@ -1,8 +1,9 @@
 import express, { Request, Response } from "express";
 import { initListenableValue } from "./listener";
 import { v4 as uuidv4 } from "uuid";
+import { assignPlayerToGame } from "./games";
 
-interface Player {
+export interface Player {
     id: string;
     ip: string;
     username: string;
@@ -141,7 +142,10 @@ function changePlayerStatus(newStatus: Player["status"], req: Request, res: Resp
     }
 
     const editedPlayer = players().find(player => player.privateKey === key)!;
-    res.status(200).json(secure(editedPlayer));
+
+    const assignedGame = assignPlayerToGame(editedPlayer);
+
+    res.status(200).json([secure(editedPlayer), assignedGame]);
 }
 
 function quit(req: Request, res: Response) {

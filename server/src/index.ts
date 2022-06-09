@@ -1,8 +1,9 @@
 import express from "express";
-import http from "http";
+import { createServer } from "http";
 import cors from "cors";
 import ip from "ip";
-import { Server, Socket } from "socket.io";
+
+import { Server } from "socket.io";
 
 import { playersRouter } from "./players";
 
@@ -14,15 +15,34 @@ app.use(cors());
 app.use(express.json());
 app.use("/players", playersRouter);
 
-const httpServer = http.createServer(app);
-const io = new Server(httpServer);
-io.on("connection", (socket: Socket) => {
-    console.log(JSON.stringify(socket, null, 4));
+const httpServer = createServer(app);
+
+const io = new Server(httpServer, {
+    cors: {}
 });
 
+io.on("connection", socket => {
+    console.log("Socket connected:")
+    console.log(socket.id);
+});
+io.on("disconnect", socket => {
+    console.log("Socket disconnected:")
+    console.log(socket.id);
+});
 
 app.get("/", (_, res) => res.sendStatus(200));
-
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`http://${HOSTNAME}:${PORT}/`);
+app.get("/get-socket-info", (_, res) => {
+    res.status(200).json(httpServer.address());
 });
+
+app.listen(PORT, HOSTNAME, () => {
+    console.log("- Express server set up!");
+
+    httpServer.listen(PORT+1, HOSTNAME, () => {
+        console.log(`- Socket.io server set up!`);
+        console.log(`http://${HOSTNAME}:${PORT}`);
+        console.log(`${new Date().toString()}`);
+    });
+})
+
+

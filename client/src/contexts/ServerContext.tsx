@@ -1,5 +1,6 @@
 import React, { FC, useContext, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
+import { io, Socket } from "socket.io-client";
 
 export type Connection = {
     pin: string;
@@ -11,15 +12,26 @@ export type Connection = {
 export type ContextValue = {
     connection: Connection | null | undefined;
     connect: (pin: string) => Promise<Connection | null>;
+
+    socket: Socket | null | undefined;
+    openSocket: (playerId: string) => Promise<void>;
+    closeSocket: () => Promise<void>;
 };
 
-const ServerContext = React.createContext<ContextValue>({ connection: null, connect: async () => null });
+const ServerContext = React.createContext<ContextValue>({
+    connection: null,
+    connect: async () => null,
+    socket: null,
+    openSocket: async () => {},
+    closeSocket: async () => {},
+});
 const { Provider, Consumer } = ServerContext;
 
 const CONNECTION_STORAGE_KEY = "server-connection";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     const [connection, setConnection] = useState<Connection | null | undefined>();
+    const [socket, setSocket] = useState<Socket | null | undefined>();
 
     const [urlParams] = useSearchParams();
 
@@ -64,6 +76,29 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(connection));
     }, [connection]);
 
+    async function openSocket(playerId: string) {
+        if (!connection) return;
+
+        const socketInfo = await fetch(`${connection.url}/get-socket-info`).then(res => res.json());
+        if (socketInfo === null) return;
+
+        const address: string = socketInfo.address;
+        const port: number = socketInfo.port;
+
+        const instance = io(`http://${address}:${port}`, {
+            query: { playerId },
+        });
+        instance.connect();
+        setSocket(instance);
+    }
+
+    async function closeSocket() {
+        if (!socket) return;
+
+        socket.close();
+        setSocket(null);
+    }
+
     async function checkConnection(connection: Connection) {
         // 7 seconds timeout - 30 is too long
         const timeoutController = new AbortController();
@@ -81,8 +116,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     }
 
     function createConnectionObjFromPin(pin: string) {
-
-        if(pin.charAt(0) !== "#") throw new Error("A pin should start with a '#'");
+        if (pin.charAt(0) !== "#") throw new Error("A pin should start with a '#'");
 
         // remove the # at the beginning and split between the dots
         const ipString = pin.substring(1);
@@ -124,7 +158,9 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         );
     }, [connection]);
 
-    return <Provider value={{ connection, connect }}>{children}</Provider>;
+    return (
+        <Provider value={{ connection, socket, connect, openSocket, closeSocket }}>{children}</Provider>
+    );
 };
 
 export const useServerConnection = () => useContext(ServerContext);
