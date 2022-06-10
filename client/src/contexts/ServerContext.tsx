@@ -1,35 +1,33 @@
-import React, { FC, useContext, useEffect, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import React, { Context, FC, useContext, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 
 export type Connection = {
     pin: string;
     ip: [number, number, number, number, number];
     url: string;
-    connectionTime: Date;
 };
 
 export type ContextValue = {
     connection: Connection | null | undefined;
-    connect: (pin: string) => Promise<Connection | null>;
-
     socket: Socket | null | undefined;
-    openSocket: (playerId: string) => Promise<void>;
-    closeSocket: () => Promise<void>;
+
+    open: (playerId: string) => Promise<void>;
+    close: () => Promise<void>;
 };
 
 const ServerContext = React.createContext<ContextValue>({
     connection: null,
-    connect: async () => null,
     socket: null,
-    openSocket: async () => {},
-    closeSocket: async () => {},
+    open: async () => {},
+    close: async () => {},
 });
 const { Provider, Consumer } = ServerContext;
 
 const CONNECTION_STORAGE_KEY = "server-connection";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
+
     const [connection, setConnection] = useState<Connection | null | undefined>();
     const [socket, setSocket] = useState<Socket | null | undefined>();
 
@@ -76,8 +74,9 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(connection));
     }, [connection]);
 
-    async function openSocket(playerId: string) {
-        if (!connection) return;
+    async function open(pin: string) {
+        const connection = createConnectionObjFromPin(pin);
+        setConnection(connection);
 
         const socketInfo = await fetch(`${connection.url}/get-socket-info`).then(res => res.json());
         if (socketInfo === null) return;
@@ -85,17 +84,14 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         const address: string = socketInfo.address;
         const port: number = socketInfo.port;
 
-        const instance = io(`http://${address}:${port}`, {
-            query: { playerId },
-        });
-        instance.connect();
+        const instance = io(`http://${address}:${port}`).connect();
         setSocket(instance);
     }
 
-    async function closeSocket() {
+    async function close() {
         if (!socket) return;
 
-        socket.close();
+        socket.disconnect();
         setSocket(null);
     }
 
@@ -116,7 +112,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     }
 
     function createConnectionObjFromPin(pin: string) {
-        if (pin.charAt(0) !== "#") throw new Error("A pin should start with a '#'");
+        if (pin.charAt(0) !== "#") throw new Error("Un pin doit commencer avec un '#'.");
 
         // remove the # at the beginning and split between the dots
         const ipString = pin.substring(1);
@@ -131,20 +127,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
             pin,
             ip: ip as Connection["ip"],
             url,
-            connectionTime: new Date(),
         };
-
-        return newConnection;
-    }
-
-    async function connect(pin: string) {
-        console.log(`Tentative de connexion au serveur %c${pin}`, "color: lightblue");
-
-        const newConnection = createConnectionObjFromPin(pin);
-
-        console.log(`URL du serveur: %c"${newConnection.url}"`, "color: lightblue");
-
-        if (await checkConnection(newConnection)) setConnection(newConnection);
 
         return newConnection;
     }
@@ -158,11 +141,14 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         );
     }, [connection]);
 
-    return (
-        <Provider value={{ connection, socket, connect, openSocket, closeSocket }}>{children}</Provider>
-    );
+    return <Provider value={{ connection, socket, open, close }}>{children}</Provider>;
 };
 
-export const useServerConnection = () => useContext(ServerContext);
+export const useConnection = () => useContext(ServerContext)["connection"];
+export const useSocket = () => {
+    // the type assertion here "removes" the 'connection' property to the eye of TypeScript
+    // tough it will be available at runtime anyway
+    return useContext(ServerContext) as Exclude<ContextValue, "connection">;
+}
 
 export { ServerContext, ServerProvider, Consumer as ServerConsumer };

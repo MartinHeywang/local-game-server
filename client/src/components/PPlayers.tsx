@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useServerConnection } from "../contexts/ServerContext";
+import { useConnection } from "../contexts/ServerContext";
 
 import Page from "./Page";
 import CPlayer from "./CPlayer";
@@ -11,7 +11,8 @@ import "../scss/PPlayers.scss";
 
 const PlayersPage: FC = () => {
     const navigate = useNavigate();
-    const { connection } = useServerConnection();
+
+    const connection = useConnection();
     const [players, setPlayers] = useState<Player[]>([]);
 
     const { player, join, edit, toggleReady, quit } = usePlayer();

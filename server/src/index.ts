@@ -5,9 +5,14 @@ import ip from "ip";
 
 import { Server } from "socket.io";
 
-import { playersRouter } from "./players";
+import { playersRouter, registerPlayerOrder } from "./players";
 
-const PORT = 5000;
+// express for the API
+const EXPRESS_PORT = 8080;
+
+// socket.io for the usage of the game
+const SOCKET_IO_PORT = 5000;
+
 const HOSTNAME = ip.address();
 
 const app = express();
@@ -17,17 +22,15 @@ app.use("/players", playersRouter);
 
 const httpServer = createServer(app);
 
-const io = new Server(httpServer, {
-    cors: {}
-});
+const io = new Server(httpServer, { cors: {} });
 
 io.on("connection", socket => {
-    console.log("Socket connected:")
-    console.log(socket.id);
-});
-io.on("disconnect", socket => {
-    console.log("Socket disconnected:")
-    console.log(socket.id);
+    console.log(`connect ${socket.id}`);
+    registerPlayerOrder(io, socket);
+
+    socket.on("disconnect", (reason) => {
+        console.log(`disconnect ${socket.id} due to ${reason}`);
+    })
 });
 
 app.get("/", (_, res) => res.sendStatus(200));
@@ -35,14 +38,13 @@ app.get("/get-socket-info", (_, res) => {
     res.status(200).json(httpServer.address());
 });
 
-app.listen(PORT, HOSTNAME, () => {
+app.listen(EXPRESS_PORT, HOSTNAME, () => {
     console.log("- Express server set up!");
 
-    httpServer.listen(PORT+1, HOSTNAME, () => {
+    httpServer.listen(SOCKET_IO_PORT, HOSTNAME, () => {
         console.log(`- Socket.io server set up!`);
-        console.log(`http://${HOSTNAME}:${PORT}`);
+
+        console.log(`http://${HOSTNAME}:${EXPRESS_PORT}`);
         console.log(`${new Date().toString()}`);
     });
 })
-
-

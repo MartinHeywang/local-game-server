@@ -1,5 +1,5 @@
 import React, { FC, useContext, useEffect, useState } from "react";
-import { useServerConnection } from "./ServerContext";
+import { useConnection, useSocket } from "./ServerContext";
 
 export interface Player {
     id: string;
@@ -40,7 +40,8 @@ export const PLAYER_STORAGE_KEY = "player";
 
 const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
     const [player, setPlayer] = useState<OwnPlayer | null | undefined>();
-    const { connection, openSocket, closeSocket } = useServerConnection();
+
+    const connection = useConnection();
 
     // fetch an existing player from the local storage
     useEffect(() => {
@@ -52,9 +53,6 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 
         const storedPlayer: OwnPlayer = JSON.parse(storageValue);
         if (!storedPlayer) return;
-
-        console.log("stored player:");
-        console.log(storedPlayer);
 
         fetch(`${connection!.url}/players/get-from-id/${storedPlayer.id}`)
             .then(res => {
@@ -97,14 +95,11 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 
     useEffect(() => {
         if (!player) return;
+
         // status was previously in "ready" so there is no need to do anything
         if (player.status === "playing") return;
 
-        if (player.status === "idling") {
-            openSocket(player.id);
-        } else {
-            closeSocket();
-        }
+        // fixme emit event to change the state of the player
     }, [player?.status]);
 
     async function join(username: string) {

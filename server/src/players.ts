@@ -2,6 +2,7 @@ import express, { Request, Response } from "express";
 import { initListenableValue } from "./listener";
 import { v4 as uuidv4 } from "uuid";
 import { assignPlayerToGame } from "./games";
+import { Server, Socket } from "socket.io";
 
 export interface Player {
     id: string;
@@ -161,6 +162,10 @@ function quit(req: Request, res: Response) {
 // removes the private key from the player so it can safely be sent to any client
 function secure(player: Player) {
     return { ...player, privateKey: undefined };
+}
+
+export function registerPlayerOrder(io: Server, socket: Socket) {
+    socket.on("player:join", (payload) => console.log(payload));
 }
 
 export const playersRouter = express

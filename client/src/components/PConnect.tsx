@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useServerConnection } from "../contexts/ServerContext";
+import { useConnection, useSocket } from "../contexts/ServerContext";
 
 import "../scss/PConnect.scss";
 import Page from "./Page";
@@ -9,7 +9,9 @@ const ConnectPage: FC = () => {
     const pinField = useRef<HTMLInputElement>(null);
     const errorParagraph = useRef<HTMLParagraphElement>(null);
 
-    const { connection, connect } = useServerConnection();
+    const connection = useConnection();
+    const { open } = useSocket();
+
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(false);
@@ -19,7 +21,7 @@ const ConnectPage: FC = () => {
         if (!pinField.current) return;
 
         setLoading(true);
-        connect("#" + pinField.current.value)
+        open("#" + pinField.current.value)
             .then(_ => {
                 navigate("/players");
             })
