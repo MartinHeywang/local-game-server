@@ -1,6 +1,5 @@
-import React, { FC, useEffect } from "react";
+import React from "react";
 import { Link, Route, Routes } from "react-router-dom";
-import { usePlayer } from "../contexts/PlayerContext";
 
 import PConnect from "./PConnect";
 import PPlayers from "./PPlayers";

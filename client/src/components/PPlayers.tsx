@@ -9,7 +9,7 @@ import { Player, usePlayer } from "../contexts/PlayerContext";
 
 import "../scss/PPlayers.scss";
 
-const PlayersPage: FC = () => {
+const PPlayers: FC = () => {
     const navigate = useNavigate();
 
     const connection = useConnection();
@@ -102,4 +102,4 @@ const PlayersPage: FC = () => {
     );
 };
 
-export default PlayersPage;
+export default PPlayers;

@@ -5,7 +5,7 @@ import { useConnection, useSocket } from "../contexts/ServerContext";
 import "../scss/PConnect.scss";
 import Page from "./Page";
 
-const ConnectPage: FC = () => {
+const PConnect: FC = () => {
     const pinField = useRef<HTMLInputElement>(null);
     const errorParagraph = useRef<HTMLParagraphElement>(null);
 
@@ -67,4 +67,4 @@ const ConnectPage: FC = () => {
     );
 };
 
-export default ConnectPage;
+export default PConnect;
