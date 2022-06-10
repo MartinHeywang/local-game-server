@@ -3,9 +3,9 @@ import { createServer } from "http";
 import cors from "cors";
 import ip from "ip";
 
-import { Server } from "socket.io";
+import { Server, Socket } from "socket.io";
 
-import { playersRouter, registerPlayerOrder } from "./players";
+import { PlayerCTSE, playersRouter, PlayerSTCE, registerPlayerOrder } from "./players";
 
 // express for the API
 const EXPRESS_PORT = 8080;
@@ -22,15 +22,23 @@ app.use("/players", playersRouter);
 
 const httpServer = createServer(app);
 
-const io = new Server(httpServer, { cors: {} });
+// client to server events
+type CTSEvents = PlayerCTSE;
+// server to client events
+type STCEvents = PlayerSTCE;
+
+export type OurServer = Server<CTSEvents, STCEvents, {}, {}>;
+export type OurSocket = Socket<CTSEvents, STCEvents, {}, {}>;
+
+const io: OurServer = new Server(httpServer, { cors: {} });
 
 io.on("connection", socket => {
     console.log(`connect ${socket.id}`);
     registerPlayerOrder(io, socket);
 
-    socket.on("disconnect", (reason) => {
+    socket.on("disconnect", reason => {
         console.log(`disconnect ${socket.id} due to ${reason}`);
-    })
+    });
 });
 
 app.get("/", (_, res) => res.sendStatus(200));
@@ -47,4 +55,4 @@ app.listen(EXPRESS_PORT, HOSTNAME, () => {
         console.log(`http://${HOSTNAME}:${EXPRESS_PORT}`);
         console.log(`${new Date().toString()}`);
     });
-})
+});

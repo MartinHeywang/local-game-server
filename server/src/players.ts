@@ -2,38 +2,33 @@ import express, { Request, Response } from "express";
 import { initListenableValue } from "./listener";
 import { v4 as uuidv4 } from "uuid";
 import { assignPlayerToGame } from "./games";
-import { Server, Socket } from "socket.io";
+import { OurServer, OurSocket } from ".";
 
 export interface Player {
     id: string;
-    ip: string;
-    username: string;
-    connectionTime: Date;
+    socketId: string | null;
     privateKey: string | undefined;
+
+    username: string;
+
     status: "idling" | "ready" | "playing";
 }
 
-const [players, setPlayers, addPlayersListener, rmPlayersListener] = initListenableValue<Player[]>([]);
+export interface PlayerCTSE {
+    "player:watch": (watching: boolean) => void;
 
-function watch(_: Request, res: Response) {
-    res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Connection", "keep-alive");
-    res.flushHeaders();
+    "player:join": (username: string) => void;
+    "player:edit": (username: string) => void;
+    "player:link": (privateKey: string) => void;
+    "player:quit": () => void;
 
-    const listener = (newValue: Player[]) => {
-        res.write(JSON.stringify(newValue.map(player => secure(player))));
-    };
-
-    addPlayersListener(listener);
-    listener(players());
-
-    res.on("close", () => {
-        rmPlayersListener(listener);
-        res.end();
-    });
+    "player:ready": () => void;
 }
+export interface PlayerSTCE {
+    "player:count": (count: number) => void;
+}
+
+const [players, setPlayers, addPlayersListener, rmPlayersListener] = initListenableValue<Player[]>([]);
 
 function getAll(_: Request, res: Response) {
     res.status(200).json(players().map(player => secure(player)));
@@ -51,65 +46,52 @@ function getFromID(req: Request, res: Response) {
     res.status(200).json(secure(player));
 }
 
-function getFromIP(req: Request, res: Response) {
-    const ip = decodeURIComponent(req.params.ip);
-
-    const player = players().find(player => player.ip === ip);
-    if (!player) {
-        res.status(404).json({ message: "Aucun joueur ne porte cette adresse IP." });
-        return;
-    }
-
-    res.status(200).json(secure(player));
+function watch(watching: boolean, socket: OurSocket) {
+    socket[watching ? "join" : "leave"]("players#watching");
+    if (watching) socket.emit("player:count", players().length);
 }
 
-function join(req: Request, res: Response) {
-    const { username } = req.body;
-
-    if (players().some(player => player.ip === req.ip)) {
-        res.status(400).send({ message: "Un autre joueur avec la même adresse IP existe déjà!" });
-        return;
-    }
-    if (players().some(player => player.username === username)) {
-        res.status(400).send({ message: "Ce pseudo existe déjà!" });
-        return;
-    }
+function validateUsername(username: string): [boolean, string] {
     const tooShort = username.length < 3;
+    if (tooShort) return [false, "Ce pseudo est trop court!"];
+
     const tooLong = username.length >= 15;
-    if (tooShort || tooLong) {
-        res.status(400).send({
-            message: `Ce pseudo est trop ${
-                tooShort ? "court (3 caractères min)" : "long (15 caractères max)"
-            }!`,
-        });
-        return;
-    }
+    if (tooLong) return [false, "Ce pseudo est trop long!"];
+
+    const alreadyInUse = players().some(player => player.username === username);
+    if (alreadyInUse) return [false, "Ce pseudo existe déjà!"];
+
+    return [true, "OK!"];
+}
+
+function join(username: string, socket: OurSocket) {
+    const socketUsed = players().some(player => player.socketId === socket.id);
+    if (socketUsed) throw new Error("Ce socket contrôle déjà un joueur.");
+
+    const [valid, message] = validateUsername(username);
+    if (!valid) throw new Error(message);
 
     const player: Player = {
-        username,
-        connectionTime: new Date(),
         id: uuidv4(),
-        ip: req.ip,
-        // only place where the private key is generated & sent to the client
-        privateKey: uuidv4(),
+        socketId: socket.id,
+        privateKey: uuidv4(), // only place where the private key is generated & sent to the client
+
+        username,
         status: "idling",
     };
 
     setPlayers(old => old.concat([player]));
-
-    res.status(200).json(player);
 }
 
-function edit(req: Request, res: Response) {
-    const { privateKey, username } = req.body;
-
-    if (!privateKey || !username) return res.sendStatus(422);
+function edit(username: string, socket: OurSocket) {
+    const [valid, message] = validateUsername(username);
+    if (!valid) throw new Error(message);
 
     // using map() here to only change one element in the array
     setPlayers(oldPlayers =>
         oldPlayers.map(player => {
             // only change the player with the given id
-            if (player.privateKey !== privateKey) return player;
+            if (player.socketId !== socket.id) return player;
 
             return {
                 ...player,
@@ -117,46 +99,65 @@ function edit(req: Request, res: Response) {
             };
         })
     );
-
-    res.sendStatus(200);
 }
 
-function changePlayerStatus(newStatus: Player["status"], req: Request, res: Response) {
-    const { privateKey: key } = req.body;
-    let changed = false;
+function link(privateKey: string, socket: OurSocket) {
+    setPlayers(old =>
+        old.map(player => {
+            if (player.privateKey !== privateKey) return player;
 
-    setPlayers(old => old.map(player => {
-        if(player.privateKey !== key) return player;
+            // this line is to detect if the private key has been comprised...
+            // const compromised = player.socketId !== null && player.socketId !== socket.id;
 
-        changed = true;
-
-        return {
-            ...player,
-            status: newStatus,
-        }
-    }));
-
-    // the list has not changed, so we deduce that the player was not found (given key is non-existing)
-    if(!changed) {
-        res.sendStatus(404);
-        return;
-    }
-
-    const editedPlayer = players().find(player => player.privateKey === key)!;
-
-    const assignedGame = assignPlayerToGame(editedPlayer);
-
-    res.status(200).json([secure(editedPlayer), assignedGame]);
+            return {
+                ...player,
+                socketId: socket.id,
+            };
+        })
+    );
 }
 
-function quit(req: Request, res: Response) {
-    const { privateKey } = req.body;
+function unlink(socket: OurSocket) {
+    setPlayers(old =>
+        old.map(player => {
+            if (player.socketId !== socket.id) return player;
 
-    if(!privateKey) return res.sendStatus(422);
+            return {
+                ...player,
+                socketId: null,
+            };
+        })
+    );
+}
 
-    setPlayers(oldPlayers => oldPlayers.filter(player => player.privateKey !== privateKey));
+function quit(socket: OurSocket) {
+    setPlayers(oldPlayers =>
+        oldPlayers.filter(player => {
+            const socketMatch = player.socketId === socket.id;
 
-    res.sendStatus(200);
+            return !socketMatch;
+        })
+    );
+}
+
+function changePlayerStatus(newStatus: Player["status"], socket: OurSocket) {
+    setPlayers(old =>
+        old.map(player => {
+            if (player.socketId !== socket.id) return player;
+
+            return {
+                ...player,
+                status: newStatus,
+            };
+        })
+    );
+}
+
+function ready(socket: OurSocket) {
+    const player = players().find(player => player.socketId === socket.id)!;
+    if (player.status !== "idling") return;
+
+    changePlayerStatus("ready", socket);
 }
 
 // removes the private key from the player so it can safely be sent to any client
@@ -164,28 +165,22 @@ function secure(player: Player) {
     return { ...player, privateKey: undefined };
 }
 
-export function registerPlayerOrder(io: Server, socket: Socket) {
-    socket.on("player:join", (payload) => console.log(payload));
+export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
+    socket.on("player:watch", watching => watch(watching, socket));
+
+    socket.on("player:join", username => join(username, socket));
+    socket.on("player:edit", username => edit(username, socket));
+    socket.on("player:link", key => link(key, socket));
+    socket.on("player:quit", () => quit(socket));
+
+    socket.on("player:ready", () => ready(socket));
+
+    socket.on("disconnect", () => unlink(socket));
 }
 
 export const playersRouter = express
     .Router()
-    .get("/watch", watch)
     .get("/get-all", getAll)
     .get("/get-from-id/:id", getFromID)
-    .get("/get-from-ip/:ip", getFromIP)
-    .post("/join", join)
-    .post("/edit", edit)
-    .post("/add-to-waitlist", (req, res) => changePlayerStatus("ready", req, res))
-    .post("/remove-from-waitlist", (req, res) => changePlayerStatus("idling", req, res))
-    .delete("/quit", quit);
 
 export { players as getPlayers, addPlayersListener, rmPlayersListener };
-
-addPlayersListener(players => {
-    const onWaitlist = players.filter(player => player.status === "ready");
-    // minimum two ready players are required to start a game
-    if(onWaitlist.length < 2) return;
-
-    console.log("enough players are on the waitlist to start a game");
-})
