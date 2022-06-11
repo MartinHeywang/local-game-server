@@ -27,7 +27,6 @@ const { Provider, Consumer } = ServerContext;
 const CONNECTION_STORAGE_KEY = "server-connection";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
-
     const [connection, setConnection] = useState<Connection | null | undefined>();
     const [socket, setSocket] = useState<Socket | null | undefined>();
 
@@ -76,15 +75,21 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
     async function open(pin: string) {
         const connection = createConnectionObjFromPin(pin);
-        setConnection(connection);
 
-        const socketInfo = await fetch(`${connection.url}/get-socket-info`).then(res => res.json());
+        const socketInfo = await fetch(`${connection.url}/get-socket-info`)
+            .then(res => res.json())
+            .catch(() => {
+                // 'change' the error message to a user-friendly message
+                throw new Error("Serveur indisponible");
+            });
         if (socketInfo === null) return;
 
         const address: string = socketInfo.address;
         const port: number = socketInfo.port;
 
         const instance = io(`http://${address}:${port}`).connect();
+
+        setConnection(connection);
         setSocket(instance);
     }
 
@@ -149,6 +154,6 @@ export const useSocket = () => {
     // the type assertion here "removes" the 'connection' property to the eye of TypeScript
     // tough it will be available at runtime anyway
     return useContext(ServerContext) as Exclude<ContextValue, "connection">;
-}
+};
 
 export { ServerContext, ServerProvider, Consumer as ServerConsumer };

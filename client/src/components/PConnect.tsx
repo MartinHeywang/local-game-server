@@ -20,17 +20,25 @@ const PConnect: FC = () => {
         event.preventDefault();
         if (!pinField.current) return;
 
+        changeErrorText("");
+
         setLoading(true);
         open("#" + pinField.current.value)
             .then(_ => {
                 navigate("/players");
             })
             .catch(err => {
-                errorParagraph.current!.textContent = err.message;
+                changeErrorText(err.message);
             })
             .finally(() => {
                 setLoading(false);
             });
+    }
+
+    function changeErrorText(text: string) {
+        if(!errorParagraph.current) return;
+
+        errorParagraph.current.textContent = text;
     }
 
     return (
@@ -45,6 +53,7 @@ const PConnect: FC = () => {
                             type="text"
                             id="connect-page-form-pin"
                             className="PConnect__input"
+                            onChange={() => changeErrorText("")}
                         />
                     </div>
                     <p ref={errorParagraph} className="PConnect__errors"></p>
