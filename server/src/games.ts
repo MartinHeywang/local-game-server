@@ -1,15 +1,9 @@
 import { initListenableValue } from "./listener";
-import { Player, playersRouter } from "./players";
-
 import { v4 as uuidv4 } from "uuid";
+import { models } from "local-game-server-types";
 
-export interface Game {
-    id: string;
-    playersId: string[];
-    status: "preparing" | "started" | "ended";
-}
-
-const MAX_PLAYERS_PER_GAME = 2;
+type Player = models.Player;
+type Game = models.Game;
 
 const [games, setGames] = initListenableValue<Game[]>([]);
 
@@ -17,7 +11,7 @@ function createGame() {
     const newGame: Game = {
         id: uuidv4(),
         playersId: [],
-        status: "preparing"
+        status: "preparing",
     };
 
     setGames(old => old.concat([newGame]));
@@ -25,16 +19,11 @@ function createGame() {
     return newGame;
 }
 
-function full(game: Game) {
-    return game.playersId.length >= MAX_PLAYERS_PER_GAME;
-}
-
 export function assignPlayerToGame(player: Player) {
-
     const game = (() => {
-        const allGamesFull = games().every(game => full(game));
-        if(allGamesFull) return createGame()
-        return games().find(game => !full(game))!
+        const allGamesFull = games().every(game => models.gameUtil.full(game));
+        if (allGamesFull) return createGame();
+        return games().find(game => !models.gameUtil.full(game))!;
     })();
 
     game.playersId.push(player.id);
@@ -43,7 +32,7 @@ export function assignPlayerToGame(player: Player) {
 }
 
 function startGame(game: Game) {
-    if(!full(game)) return;
+    if (!models.gameUtil.full(game)) return;
 
     game.status = "started";
 }

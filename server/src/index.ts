@@ -3,9 +3,10 @@ import { createServer } from "http";
 import cors from "cors";
 import ip from "ip";
 
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
 
-import { PlayerCTSE, playersRouter, PlayerSTCE, registerPlayerOrder } from "./players";
+import { playersRouter, registerPlayerOrder } from "./players";
+import { socketIO } from "local-game-server-types";
 
 // express for the API
 const EXPRESS_PORT = 8080;
@@ -22,15 +23,7 @@ app.use("/players", playersRouter);
 
 const httpServer = createServer(app);
 
-// client to server events
-type CTSEvents = PlayerCTSE;
-// server to client events
-type STCEvents = PlayerSTCE;
-
-export type OurServer = Server<CTSEvents, STCEvents, {}, {}>;
-export type OurSocket = Socket<CTSEvents, STCEvents, {}, {}>;
-
-const io: OurServer = new Server(httpServer, { cors: {} });
+const io: socketIO.OurServer = new Server(httpServer, { cors: {} });
 
 io.on("connection", socket => {
     console.log(`connect ${socket.id}`);

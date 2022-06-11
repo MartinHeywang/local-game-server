@@ -1,32 +1,11 @@
 import express, { Request, Response } from "express";
 import { initListenableValue } from "./listener";
 import { v4 as uuidv4 } from "uuid";
-import { assignPlayerToGame } from "./games";
-import { OurServer, OurSocket } from ".";
+import { socketIO, models } from "local-game-server-types";
 
-export interface Player {
-    id: string;
-    socketId: string | null;
-    privateKey: string | undefined;
-
-    username: string;
-
-    status: "idling" | "ready" | "playing";
-}
-
-export interface PlayerCTSE {
-    "player:watch": (watching: boolean) => void;
-
-    "player:join": (username: string) => void;
-    "player:edit": (username: string) => void;
-    "player:link": (privateKey: string) => void;
-    "player:quit": () => void;
-
-    "player:ready": () => void;
-}
-export interface PlayerSTCE {
-    "player:count": (count: number) => void;
-}
+type OurServer = socketIO.OurServer;
+type OurSocket = socketIO.OurSocket;
+type Player = models.Player;
 
 const [players, setPlayers, addPlayersListener, rmPlayersListener] = initListenableValue<Player[]>([]);
 
@@ -178,9 +157,6 @@ export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
     socket.on("disconnect", () => unlink(socket));
 }
 
-export const playersRouter = express
-    .Router()
-    .get("/get-all", getAll)
-    .get("/get-from-id/:id", getFromID)
+export const playersRouter = express.Router().get("/get-all", getAll).get("/get-from-id/:id", getFromID);
 
 export { players as getPlayers, addPlayersListener, rmPlayersListener };

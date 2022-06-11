@@ -1,23 +1,11 @@
 import React, { FC, useContext, useEffect, useState } from "react";
 import { useConnection, useSocket } from "./ServerContext";
 
-export interface Player {
-    id: string;
-    ip: string;
-    username: string;
-    connectionTime: Date;
-    status: "idling" | "ready" | "playing";
-}
+import {models} from "local-game-server-types";
 
-// special kind of player that has a "private key"
-// this private key is given to the client that made the request to join and is never given elsewhere
-// used for sensitive actions / actions that can only be done from himself
-type OwnPlayer = Player & { privateKey: string };
-
-export interface Game {
-    id: string;
-    playersId: string[];
-}
+type Player = models.Player;
+type OwnPlayer = models.OwnPlayer;
+type Game = models.Game;
 
 interface ContextValue {
     player: Player | null | undefined;

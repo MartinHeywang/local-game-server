@@ -1,5 +1,5 @@
 {
-    "name": "local-platformer-game-server",
+    "name": "local-game-server-backend",
     "version": "0.0.0",
     "private": true,
     "scripts": {
@@ -9,6 +9,7 @@
         "cors": "^2.8.5",
         "express": "~4.16.1",
         "ip": "^1.1.8",
+        "local-game-server-types": "file:../types",
         "socket.io": "^4.5.1",
         "uuid": "^8.3.2"
     },

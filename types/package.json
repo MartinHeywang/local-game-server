@@ -1,0 +1,10 @@
+{
+    "name": "local-game-server-types",
+    "version": "0.0.1",
+    "author": "Martin Heywang",
+    "license": "MIT",
+    "main": "src/index.ts",
+    "dependencies": {
+        "socket.io": "^4.5.1"
+    }
+}

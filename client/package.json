@@ -1,5 +1,5 @@
 {
-  "name": "local-platformer-game-app",
+  "name": "local-game-server-frontend",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "local-game-server-types": "file:../types",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-router-dom": "^6.3.0",
