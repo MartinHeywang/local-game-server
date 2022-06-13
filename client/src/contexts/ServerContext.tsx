@@ -1,4 +1,4 @@
-import React, { Context, FC, useContext, useEffect, useState } from "react";
+import React, { Context, FC, useContext, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 
@@ -24,56 +24,65 @@ const ServerContext = React.createContext<ContextValue>({
 });
 const { Provider, Consumer } = ServerContext;
 
-const CONNECTION_STORAGE_KEY = "server-connection";
+const PIN_STORAGE_KEY = "server-pin";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
+
     const [connection, setConnection] = useState<Connection | null | undefined>();
     const [socket, setSocket] = useState<Socket | null | undefined>();
+
+    // the only reason why this ref is here: (only valid in dev)
+    // to prevent strict mode from initializing sockets twice
+    const opening = useRef(false);
 
     const [urlParams] = useSearchParams();
 
     useEffect(() => {
         if (connection) return;
         if (urlParams.has("pin")) return;
+        if(opening.current === true) return;
 
-        const storageValue = localStorage.getItem(CONNECTION_STORAGE_KEY);
-        if (!storageValue) return;
-        const storedConnection: Connection = JSON.parse(storageValue);
+        const pin = localStorage.getItem(PIN_STORAGE_KEY);
+        if (!pin) return;
 
-        checkConnection(storedConnection).then(valid => {
-            if (valid) setConnection(storedConnection);
-            else localStorage.removeItem(CONNECTION_STORAGE_KEY);
-        });
+        console.log("trying to connect using the local storage");
+
+        open(pin);
     }, []);
 
     useEffect(() => {
         if (connection) return;
-
-        console.log("trying to connect to server trough url search param");
+        if(opening.current === true) return;
 
         const pin = urlParams.get("pin");
         if (pin === null) return;
 
-        console.log(`Pin: ${pin}`);
+        console.log("trying to connect using the url params")
 
-        try {
-            const newConnection = createConnectionObjFromPin(pin);
-            console.log(newConnection);
-
-            checkConnection(newConnection).then(valid => {
-                if (!valid) return;
-                setConnection(newConnection);
-            });
-        } catch {}
+        open(pin);
     }, []);
 
     useEffect(() => {
+        // difference b/w undefined und null here:
+        // undefined = literally not defined so the state has just been initialized for example
+        // null = the connection has ended, so in this case remove the entry from the local storage
         if (connection === undefined) return;
+        if (connection === null) return localStorage.removeItem(PIN_STORAGE_KEY);
 
-        localStorage.setItem(CONNECTION_STORAGE_KEY, JSON.stringify(connection));
+        localStorage.setItem(PIN_STORAGE_KEY, connection.pin);
     }, [connection]);
 
     async function open(pin: string) {
+        console.log(`call to 'open' method with pin ${pin}`);
+        console.log(`Currently opening: ${opening.current}`);
+        console.log(socket);
+
+        if(opening.current === true) return;
+        if(socket && socket.connected) return;
+
+        console.log("opening a new socket...")
+        opening.current = true;
+
         const connection = createConnectionObjFromPin(pin);
 
         const socketInfo = await fetch(`${connection.url}/get-socket-info`)
@@ -91,6 +100,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
         setConnection(connection);
         setSocket(instance);
+        opening.current = false;
     }
 
     async function close() {
@@ -98,22 +108,6 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
         socket.disconnect();
         setSocket(null);
-    }
-
-    async function checkConnection(connection: Connection) {
-        // 7 seconds timeout - 30 is too long
-        const timeoutController = new AbortController();
-        const timeout = setTimeout(() => timeoutController.abort(), 7_000);
-
-        try {
-            const ok = await fetch(connection.url, { signal: timeoutController.signal }).then(res => {
-                clearTimeout(timeout);
-                return res.ok;
-            });
-            return ok;
-        } catch {
-            return false;
-        }
     }
 
     function createConnectionObjFromPin(pin: string) {

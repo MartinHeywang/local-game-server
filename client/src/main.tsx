@@ -9,7 +9,7 @@ import App from "./components/App";
 
 import "./scss/index.scss";
 
-// could be called "ContextsProvider" in fact...
+// could be called "ContextsProvider" in fact
 const Contexts: FC<{ children: React.ReactNode }> = ({ children }) => {
     return (
         <ServerProvider>
