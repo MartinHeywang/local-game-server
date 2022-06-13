@@ -12,7 +12,7 @@ export type ContextValue = {
     connection: Connection | null | undefined;
     socket: Socket | null | undefined;
 
-    open: (playerId: string) => Promise<void>;
+    open: (pin: string, force?: boolean) => Promise<void>;
     close: () => Promise<void>;
 };
 
@@ -27,7 +27,6 @@ const { Provider, Consumer } = ServerContext;
 const PIN_STORAGE_KEY = "server-pin";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
-
     const [connection, setConnection] = useState<Connection | null | undefined>();
     const [socket, setSocket] = useState<Socket | null | undefined>();
 
@@ -40,7 +39,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     useEffect(() => {
         if (connection) return;
         if (urlParams.has("pin")) return;
-        if(opening.current === true) return;
+        if (opening.current === true) return;
 
         const pin = localStorage.getItem(PIN_STORAGE_KEY);
         if (!pin) return;
@@ -52,12 +51,12 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
     useEffect(() => {
         if (connection) return;
-        if(opening.current === true) return;
+        if (opening.current === true) return;
 
         const pin = urlParams.get("pin");
         if (pin === null) return;
 
-        console.log("trying to connect using the url params")
+        console.log("trying to connect using the url params");
 
         open(pin);
     }, []);
@@ -72,15 +71,19 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         localStorage.setItem(PIN_STORAGE_KEY, connection.pin);
     }, [connection]);
 
-    async function open(pin: string) {
+    async function open(pin: string, force?: boolean) {
         console.log(`call to 'open' method with pin ${pin}`);
         console.log(`Currently opening: ${opening.current}`);
         console.log(socket);
 
-        if(opening.current === true) return;
-        if(socket && socket.connected) return;
+        if (opening.current === true) return;
+        if (socket && socket.connected) {
+            if (force === true) {
+                close();
+            } else return;
+        }
 
-        console.log("opening a new socket...")
+        console.log("opening a new socket...");
         opening.current = true;
 
         const connection = createConnectionObjFromPin(pin);

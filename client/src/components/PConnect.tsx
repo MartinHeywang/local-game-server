@@ -23,7 +23,7 @@ const PConnect: FC = () => {
         changeErrorText("");
 
         setLoading(true);
-        open("#" + pinField.current.value)
+        open("#" + pinField.current.value, true)
             .then(_ => {
                 navigate("/players");
             })
