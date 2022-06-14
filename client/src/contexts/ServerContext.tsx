@@ -1,6 +1,7 @@
-import React, { Context, FC, useContext, useEffect, useRef, useState } from "react";
+import React, { FC, useContext, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
+import { socketIO } from "local-game-server-types";
 
 export type Connection = {
     pin: string;
@@ -10,7 +11,7 @@ export type Connection = {
 
 export type ContextValue = {
     connection: Connection | null | undefined;
-    socket: Socket | null | undefined;
+    socket: socketIO.OurClientSocket | null | undefined;
 
     open: (pin: string, force?: boolean) => Promise<void>;
     close: () => Promise<void>;
@@ -28,7 +29,7 @@ const PIN_STORAGE_KEY = "server-pin";
 
 const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     const [connection, setConnection] = useState<Connection | null | undefined>();
-    const [socket, setSocket] = useState<Socket | null | undefined>();
+    const [socket, setSocket] = useState<socketIO.OurClientSocket | null | undefined>();
 
     // the only reason why this ref is here: (only valid in dev)
     // to prevent strict mode from initializing sockets twice
@@ -99,7 +100,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         const address: string = socketInfo.address;
         const port: number = socketInfo.port;
 
-        const instance = io(`http://${address}:${port}`).connect();
+        const instance: socketIO.OurClientSocket = io(`http://${address}:${port}`).connect();
 
         setConnection(connection);
         setSocket(instance);

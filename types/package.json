@@ -5,6 +5,7 @@
     "license": "MIT",
     "main": "src/index.ts",
     "dependencies": {
-        "socket.io": "^4.5.1"
+        "socket.io": "^4.5.1",
+        "socket.io-client": "^4.5.1"
     }
 }

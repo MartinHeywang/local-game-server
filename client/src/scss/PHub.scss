@@ -1,0 +1,87 @@
+@use "./media" as media;
+
+.PHub .Page__container {
+    display: flex;
+    flex-direction: column;
+    min-height: 80vh;
+
+    .PHub__main-card {
+        flex-grow: 1;
+    }
+}
+
+.PHub__main-card {
+    --space: 1em;
+
+    display: grid;
+    @include media.for-desktop {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(2, 1fr);
+    }
+    gap: var(--space);
+
+    background-color: rgba(0, 0, 0, 0.3);
+
+    padding: var(--space);
+}
+
+@include media.for-desktop {
+    .PHub__player-zone {
+        grid-row: 1 / -1;
+        grid-column: 1 / 2;
+    }
+
+    .PHub__game-zone {
+        grid-row: 1 / -1;
+        grid-column: 2 / 3;
+    }
+}
+
+.PHub__top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.PHub__main-card {
+    h2 {
+        margin-bottom: 1em;
+    }
+}
+
+.PHub__server-pin {
+    color: lightblue;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.PHub__player-zone {
+    background-color: rgba(mix(#222, darkred), 70%);
+    padding: 1em;
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5em;
+
+        padding: 1em 0;
+
+        > * {
+            width: 100%;
+        }
+    }
+
+    .PHub__player-status {
+        margin: 0.5em 0;
+    }
+}
+
+.PHub__game-zone {
+    background-color: rgba(mix(#111, dodgerblue), 50%);
+    padding: 1em;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}

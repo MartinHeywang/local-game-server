@@ -2,14 +2,14 @@ import React from "react";
 import { Link, Route, Routes } from "react-router-dom";
 
 import PConnect from "./PConnect";
-import PPlayers from "./PPlayers";
+import PHub from "./PHub";
 
 function App() {
 
     return (
         <Routes>
             <Route path="connect" element={<PConnect />} />
-            <Route path="players" element={<PPlayers />} />
+            <Route path="hub" element={<PHub />} />
             <Route
                 path="/"
                 element={

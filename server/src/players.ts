@@ -60,6 +60,7 @@ function join(username: string, socket: OurSocket) {
     };
 
     setPlayers(old => old.concat([player]));
+    emitUpdate(socket);
 }
 
 function edit(username: string, socket: OurSocket) {
@@ -78,6 +79,7 @@ function edit(username: string, socket: OurSocket) {
             };
         })
     );
+    emitUpdate(socket);
 }
 
 function link(privateKey: string, socket: OurSocket) {
@@ -94,6 +96,7 @@ function link(privateKey: string, socket: OurSocket) {
             };
         })
     );
+    emitUpdate(socket);
 }
 
 function unlink(socket: OurSocket) {
@@ -107,6 +110,7 @@ function unlink(socket: OurSocket) {
             };
         })
     );
+    emitUpdate(socket);
 }
 
 function quit(socket: OurSocket) {
@@ -117,6 +121,7 @@ function quit(socket: OurSocket) {
             return !socketMatch;
         })
     );
+    emitUpdate(socket);
 }
 
 function changePlayerStatus(newStatus: Player["status"], socket: OurSocket) {
@@ -130,6 +135,7 @@ function changePlayerStatus(newStatus: Player["status"], socket: OurSocket) {
             };
         })
     );
+    emitUpdate(socket);
 }
 
 function ready(socket: OurSocket) {
@@ -144,6 +150,10 @@ function secure(player: Player) {
     return { ...player, privateKey: undefined };
 }
 
+function emitUpdate(socket: OurSocket) {
+    socket.emit("player:update", players().find(player => player.socketId === socket.id)!);
+}
+
 export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
     socket.on("player:watch", watching => watch(watching, socket));
 
@@ -155,6 +165,11 @@ export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
     socket.on("player:ready", () => ready(socket));
 
     socket.on("disconnect", () => unlink(socket));
+
+    addPlayersListener(players => {
+        // may not to emit anything if the socket is not in the room "watching"
+        io.to("watching").to(socket.id).emit("player:count", players.length);
+    })
 }
 
 export const playersRouter = express.Router().get("/get-all", getAll).get("/get-from-id/:id", getFromID);

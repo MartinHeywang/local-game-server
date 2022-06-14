@@ -1,3 +1,5 @@
+import { Player } from "../models";
+
 export interface ClientToServerEvents {
     "player:watch": (watching: boolean) => void;
 
@@ -6,9 +8,11 @@ export interface ClientToServerEvents {
     "player:link": (privateKey: string) => void;
     "player:quit": () => void;
 
-    "player:ready": () => void;
+    "player:ready": (ready?: boolean) => void;
 }
 
 export interface ServerToClientEvents {
     "player:count": (count: number) => void;
+
+    "player:update": (player: Player | null) => void;
 }

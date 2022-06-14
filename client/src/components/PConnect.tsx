@@ -25,7 +25,7 @@ const PConnect: FC = () => {
         setLoading(true);
         open("#" + pinField.current.value, true)
             .then(_ => {
-                navigate("/players");
+                navigate("/hub");
             })
             .catch(err => {
                 changeErrorText(err.message);
@@ -67,7 +67,7 @@ const PConnect: FC = () => {
                         <p className="PConnect__already-connected">
                             Tu es déjà connecté à un serveur! (
                             <span className="PConnect__server-pin">{connection.pin}</span>)<br />
-                            <Link to="/players">Page des joueurs</Link>
+                            <Link to="/hub">Aller au hub</Link>
                         </p>
                     </>
                 )}
