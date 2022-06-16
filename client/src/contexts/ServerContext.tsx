@@ -15,13 +15,40 @@ export type ContextValue = {
 
     open: (pin: string, force?: boolean) => Promise<void>;
     close: () => Promise<void>;
+    throwErrorIfInvalidSocket: () => void;
+
+    // for more details, see declaration inside the provider
+    emitWithResponse: <
+        T extends Parameters<socketIO.STCEvents[ER]>,
+        ES extends keyof socketIO.CTSEvents = keyof socketIO.CTSEvents,
+        EE extends Extract<keyof socketIO.STCEvents, `${string}error${string}`> = Extract<
+            keyof socketIO.STCEvents,
+            `${string}error${string}`
+        >,
+        ER extends Exclude<keyof socketIO.STCEvents, EE> = Exclude<keyof socketIO.STCEvents, EE>
+    >(
+        eventsName: {
+            req: ES;
+            err: EE;
+            res: ER;
+        },
+        eventData: Parameters<socketIO.CTSEvents[ES]>,
+        options?: { timeout: number }
+    ) => Promise<T extends never ? Parameters<socketIO.STCEvents[ER]> : T>;
+};
+
+const errorFn = (name: string) => {
+    throw new Error(`Can't use property '${name}' on the ServerContext where it is not provided`);
 };
 
 const ServerContext = React.createContext<ContextValue>({
-    connection: null,
-    socket: null,
-    open: async () => {},
-    close: async () => {},
+    connection: undefined,
+    socket: undefined,
+
+    open: () => errorFn("open"),
+    close: () => errorFn("close"),
+    throwErrorIfInvalidSocket: () => errorFn("throwErrorIfInvalidSocket"),
+    emitWithResponse: () => errorFn("emitWithResponse"),
 });
 const { Provider, Consumer } = ServerContext;
 
@@ -47,7 +74,9 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
         console.log("trying to connect using the local storage");
 
-        open(pin);
+        open(pin).catch(_ => {
+            console.log(`Failed to connect with pin: %c${pin}`, "color: lightblue; font-weight: bold");
+        });
     }, []);
 
     useEffect(() => {
@@ -59,7 +88,9 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
 
         console.log("trying to connect using the url params");
 
-        open(pin);
+        open(pin).catch(_ => {
+            console.log(`Failed to connect with pin: %c${pin}`, "color: lightblue; font-weight: bold");
+        });
     }, []);
 
     useEffect(() => {
@@ -73,37 +104,43 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     }, [connection]);
 
     async function open(pin: string, force?: boolean) {
-        console.log(`call to 'open' method with pin ${pin}`);
-        console.log(`Currently opening: ${opening.current}`);
-        console.log(socket);
+        
+        // the force option only works if a socket is already setup and connected
+        // not if something else is already trying to connect
+        if (opening.current === true) {
+            throw new Error("Action impossible. Réessaye dans quelques secondes.");
+        }
 
-        if (opening.current === true) return;
         if (socket && socket.connected) {
             if (force === true) {
                 close();
             } else return;
         }
 
-        console.log("opening a new socket...");
         opening.current = true;
 
-        const connection = createConnectionObjFromPin(pin);
+        try {
+            const connection = createConnectionObjFromPin(pin);
 
-        const socketInfo = await fetch(`${connection.url}/get-socket-info`)
-            .then(res => res.json())
-            .catch(() => {
-                // 'change' the error message to a user-friendly message
-                throw new Error("Serveur indisponible");
-            });
-        if (socketInfo === null) return;
+            const socketInfo = await fetch(`${connection.url}/get-socket-info`)
+                .then(res => res.json())
+                .catch(() => {
+                    opening.current = false;
 
-        const address: string = socketInfo.address;
-        const port: number = socketInfo.port;
+                    // 'change' the error message to a user-friendly message
+                    throw new Error("Serveur indisponible");
+                });
+            if (socketInfo === null) return;
 
-        const instance: socketIO.OurClientSocket = io(`http://${address}:${port}`).connect();
+            const address: string = socketInfo.address;
+            const port: number = socketInfo.port;
 
-        setConnection(connection);
-        setSocket(instance);
+            const instance: socketIO.OurClientSocket = io(`http://${address}:${port}`).connect();
+
+            setConnection(connection);
+            setSocket(instance);
+        } catch {}
+
         opening.current = false;
     }
 
@@ -135,6 +172,84 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         return newConnection;
     }
 
+    function throwErrorIfInvalidSocket(
+        socket: socketIO.OurClientSocket | null | undefined
+    ): asserts socket is socketIO.OurClientSocket {
+        if (socket && socket.connected) return;
+        throw new Error("The socket is not initialized or not properly connected.");
+    }
+
+    function emitWithResponse<
+        T extends Parameters<socketIO.STCEvents[ER]>,
+        // generics for event names
+
+        // all client to server events are possible
+        ES extends keyof socketIO.CTSEvents,
+        // all server to client events are possible, expect the one given for the error
+        ER extends Exclude<keyof socketIO.STCEvents, EE>,
+        // only server to client events whose name contain "error"
+        EE extends Extract<keyof socketIO.STCEvents, `${string}error${string}`>
+    >(
+        eventsName: {
+            req: ES;
+            res: ER;
+            err: EE;
+        },
+        eventData: Parameters<socketIO.CTSEvents[ES]>,
+        options = { timeout: 10000 }
+    ) {
+        type ResponseData = T extends never ? Parameters<socketIO.STCEvents[ER]> : T;
+
+        return new Promise<ResponseData>((resolve, reject) => {
+            throwErrorIfInvalidSocket(socket);
+
+            const timeout = setTimeout(() => {
+                removeListeners();
+
+                reject("Délai d'attente dépassé");
+            }, options.timeout);
+
+            const resolutionHandler = (...data: ResponseData) => {
+                removeListeners();
+
+                resolve(data);
+            };
+
+            const rejectionHandler = (data: string) => {
+                removeListeners();
+
+                // the data is expected to be the error message (as a string)
+                reject(data as string);
+            };
+
+            const removeListeners = () => {
+                clearTimeout(timeout);
+                // @ts-ignore
+                socket!.off(eventsName.res, resolutionHandler);
+
+                // @ts-ignore
+                socket!.off(eventsName.err, rejectionHandler);
+            };
+
+            // @ts-expect-error
+            // TypeScript complains about the type of the listener registered just here:
+            // even though it is completely correct
+            // (as well as for the public interface of 'emitWithResponse')
+            //
+            // note: this is *probably* because eventsName.response is a variable (whose type is an union)
+            // rather that the hard coded name of the event (or a variable that could take one value)
+            // We are not even able the pass an empty function (no args, return type void) in here!
+            socket!.once(eventsName.res, resolutionHandler);
+
+            // @ts-expect-error : same as above
+            socket!.once(eventsName.err, rejectionHandler);
+
+            console.log(`emitting (expecting response) ${eventsName.req}`);
+            console.log("result:");
+            socket!.emit(eventsName.req, ...eventData);
+        });
+    }
+
     useEffect(() => {
         // !! to infer type to boolean (double inverse)
         const connected = !!connection;
@@ -144,7 +259,20 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         );
     }, [connection]);
 
-    return <Provider value={{ connection, socket, open, close }}>{children}</Provider>;
+    return (
+        <Provider
+            value={{
+                connection,
+                socket,
+                open,
+                close,
+                throwErrorIfInvalidSocket: () => throwErrorIfInvalidSocket(socket),
+                emitWithResponse,
+            }}
+        >
+            {children}
+        </Provider>
+    );
 };
 
 export const useConnection = () => useContext(ServerContext)["connection"];

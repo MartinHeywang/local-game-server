@@ -1,29 +1,29 @@
 import React, { FC, useContext, useEffect, useRef, useState } from "react";
 import { useConnection, useSocket } from "./ServerContext";
 
-import { models } from "local-game-server-types";
+import { models, socketIO } from "local-game-server-types";
 
 type Player = models.Player;
 type OwnPlayer = models.OwnPlayer;
 
 interface ContextValue {
     player: Player | null | undefined;
-    join: (username: string) => Promise<void>;
-    edit: (username: string) => Promise<void>;
-    ready: (ready?: boolean) => Promise<void>;
-    quit: () => Promise<void>;
+    join: (username: string) => Promise<[OwnPlayer]>;
+    edit: (username: string) => Promise<[Player]>;
+    ready: (ready?: boolean) => Promise<[Player]>;
+    quit: () => Promise<[null]>;
 }
 
-const defaultFn = () => {
-    throw new Error("Can't use properties of the PlayerContext where it is not available.");
+const errorFn = (name: string) => {
+    throw new Error(`Can't use property ${name} of the PlayerContext is not provided`);
 };
 
 const PlayerContext = React.createContext<ContextValue>({
     player: null,
-    join: defaultFn,
-    edit: defaultFn,
-    ready: defaultFn,
-    quit: defaultFn,
+    join: () => errorFn("join"),
+    edit: () => errorFn("edit"),
+    ready: () => errorFn("ready"),
+    quit: () => errorFn("quit"),
 });
 const { Provider, Consumer } = PlayerContext;
 
@@ -34,18 +34,19 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
     const privateKey = useRef<string>();
 
     const connection = useConnection();
-    const { socket } = useSocket();
+    const { socket, emitWithResponse } = useSocket();
 
     // fetch an existing player from the local storage
     useEffect(() => {
         if (player) return;
-        if (!connection || !socket) return;
+        if (!socket || !socket.connected) return;
 
         const storedKey = localStorage.getItem(PLAYER_STORAGE_KEY);
         if (!storedKey) return;
 
         privateKey.current = storedKey;
 
+        console.log(`trying to link socket of id '${socket.id}' to player of key '${storedKey}'`);
         socket.emit("player:link", storedKey);
     }, [connection]);
 
@@ -54,9 +55,8 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
 
         const handle = (player: Player | null) => {
             setPlayer(old => {
-
                 // the given player might be null (for example on quit)
-                if(!player) return player;
+                if (!player) return player;
 
                 // if the private key is not given in the event
                 // we check if we already have one in the old object
@@ -103,33 +103,61 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
         return () => window.removeEventListener("beforeunload", handler);
     }, []);
 
-    function checkSocketElseThrowError() {
-        if (socket && socket.connected) return;
-        throw new Error("The socket is not initialized or not properly connected.");
+    useEffect(() => {
+        if (!socket || !socket.connected) return;
+
+        const handle = (message: string) => {
+            console.log(`Le serveur a envoyé un 'player:error'`);
+            console.log(message);
+        };
+
+        socket.on("player:error", handle);
+        return () => {
+            socket.off("player:error", handle);
+        };
+    });
+
+    function join(username: string) {
+        const promise = emitWithResponse<[OwnPlayer]>(
+            { req: "player:join", res: "player:update", err: "player:error" },
+            [username]
+        );
+
+        promise.then(([player]) => {
+            console.log("Player successfully joined");
+            console.log(player);
+        });
+
+        promise.catch(message => {
+            console.log("Error while joining");
+            console.log(message);
+        });
+
+        return promise;
     }
 
-    async function join(username: string) {
-        checkSocketElseThrowError();
-        socket!.emit("player:join", username);
+    function edit(newUsername: string) {
+        return emitWithResponse<[Player]>(
+            { req: "player:edit", res: "player:update", err: "player:error" },
+            [newUsername]
+        );
     }
 
-    async function edit(newUsername: string) {
-        checkSocketElseThrowError();
-        socket!.emit("player:edit", newUsername);
-    }
-
-    async function ready(ready?: boolean) {
-        checkSocketElseThrowError();
-
+    function ready(ready?: boolean) {
         // pass the ready argument in the event
         // but if undefined, pass the opposite of the current state
         // but if "player" is undefined, pass true
-        socket!.emit("player:ready", ready ?? player?.status === "ready" ?? true);
+        return emitWithResponse<[Player]>(
+            { req: "player:ready", res: "player:update", err: "player:error" },
+            [ready ?? player?.status === "ready" ?? true]
+        );
     }
 
-    async function quit() {
-        checkSocketElseThrowError();
-        socket!.emit("player:quit");
+    function quit() {
+        return emitWithResponse<[null]>(
+            { req: "player:quit", res: "player:update", err: "player:error" },
+            []
+        );
     }
 
     return <Provider value={{ player, join, edit, ready, quit }}>{children}</Provider>;

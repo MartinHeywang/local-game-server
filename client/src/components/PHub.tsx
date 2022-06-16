@@ -7,6 +7,7 @@ import Page from "./Page";
 import "../scss/PHub.scss";
 import { usePlayer } from "../contexts/PlayerContext";
 import CPlayer from "./CPlayer";
+import { socketIO } from "local-game-server-types";
 
 const PHub: FC = () => {
     const connection = useConnection();
@@ -17,6 +18,7 @@ const PHub: FC = () => {
     const { player, join, edit, quit } = usePlayer();
 
     const playerUsernameField = useRef<HTMLInputElement>(null);
+    const playerErrorParagraph = useRef<HTMLParagraphElement>(null);
 
     useEffect(() => {
         // must have an active connection
@@ -49,10 +51,16 @@ const PHub: FC = () => {
     function submitPlayer(event: React.FormEvent) {
         event.preventDefault();
 
+        playerErrorParagraph.current!.textContent = "";
+
         const username = playerUsernameField.current!.value;
 
+        console.log(`Submit: ${!player ? "joining" : "editing"}`);
+
         // either call join() or edit() based on the current state of the player
-        (!player ? join : edit)(username);
+        (!player ? join : edit)(username).catch((message: string) => {
+            playerErrorParagraph.current!.textContent = message;
+        });
     }
 
     return (
@@ -80,6 +88,7 @@ const PHub: FC = () => {
                         <button>{player ? "Modifier!" : "Rejoindre!"}</button>
                     </form>
 
+                    <p ref={playerErrorParagraph} className="PHub__player-form-error"></p>
 
                     {player && <button onClick={() => quit()}>Quitter {":("}</button>}
                 </div>
@@ -89,8 +98,7 @@ const PHub: FC = () => {
                 </div>
             </div>
             <p className="PHub__players-count">
-                {playersCount || 0}{" "}
-                {/* plural */}
+                {playersCount || 0} {/* plural */}
                 {["joueur", "connecté"].map(word => {
                     if ((playersCount || 0) > 1) {
                         return word + "s" + " ";

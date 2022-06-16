@@ -44,11 +44,18 @@ function validateUsername(username: string): [boolean, string] {
 }
 
 function join(username: string, socket: OurSocket) {
+
+    console.log("'player:join' was called!");
+
     const socketUsed = players().some(player => player.socketId === socket.id);
-    if (socketUsed) throw new Error("Ce socket contrôle déjà un joueur.");
+    console.log(`Socket in use: ${socketUsed}`);
+    if (socketUsed) return emitError("Ce socket contrôle déjà un joueur.", socket);
 
     const [valid, message] = validateUsername(username);
-    if (!valid) throw new Error(message);
+    console.log(`Validation: ${valid || message}`)
+    if (!valid) return emitError(message, socket);
+
+    console.log("all checks passed!")
 
     const player: Player = {
         id: uuidv4(),
@@ -60,12 +67,13 @@ function join(username: string, socket: OurSocket) {
     };
 
     setPlayers(old => old.concat([player]));
+    console.log("emitting update...")
     emitUpdate(socket);
 }
 
 function edit(username: string, socket: OurSocket) {
     const [valid, message] = validateUsername(username);
-    if (!valid) throw new Error(message);
+    if (!valid) return emitError(message, socket);
 
     // using map() here to only change one element in the array
     setPlayers(oldPlayers =>
@@ -151,7 +159,12 @@ function secure(player: Player) {
 }
 
 function emitUpdate(socket: OurSocket) {
-    socket.emit("player:update", players().find(player => player.socketId === socket.id)!);
+    socket.emit("player:update", players().find(player => player.socketId === socket.id) ?? null);
+}
+
+function emitError(message: string, socket: OurSocket) {
+    console.log(`Emitting error (socketId = ${socket.id}) (message = '${message}')`);
+    socket.emit("player:error", message);
 }
 
 export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
