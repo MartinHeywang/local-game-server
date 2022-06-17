@@ -132,25 +132,40 @@ function quit(socket: OurSocket) {
     emitUpdate(socket);
 }
 
-function changePlayerStatus(newStatus: Player["status"], socket: OurSocket) {
+function ready(ready: boolean, socket: OurSocket) {
+
+    console.log(`call to set player ready (socket.id: ${socket.id})`)
+
+    let errorMsg: string | null = null
+
     setPlayers(old =>
         old.map(player => {
             if (player.socketId !== socket.id) return player;
 
+            if(player.status === "playing") {
+                errorMsg = "Ce joueur est entrain de jouer, impossible de le déclarer prêt.";
+                return player;
+            }
+
+            const newState = ready ? "ready" : "idling";
+            if(player.status === newState) {
+                errorMsg = "L'état donné correspond exactement à l'état actuel, impossible de le changer."
+                return player;
+            }
+
             return {
                 ...player,
-                status: newStatus,
+                status: newState,
             };
         })
     );
+
+    if(errorMsg !== null) {
+        emitError(errorMsg, socket);
+        return;
+    }
+
     emitUpdate(socket);
-}
-
-function ready(socket: OurSocket) {
-    const player = players().find(player => player.socketId === socket.id)!;
-    if (player.status !== "idling") return;
-
-    changePlayerStatus("ready", socket);
 }
 
 // removes the private key from the player so it can safely be sent to any client
@@ -175,7 +190,7 @@ export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
     socket.on("player:link", key => link(key, socket));
     socket.on("player:quit", () => quit(socket));
 
-    socket.on("player:ready", () => ready(socket));
+    socket.on("player:ready", (newState) => ready(!newState ? true : false, socket));
 
     socket.on("disconnect", () => unlink(socket));
 

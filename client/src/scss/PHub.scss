@@ -80,8 +80,13 @@
     background-color: rgba(mix(#111, dodgerblue), 50%);
     padding: 1em;
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+}
+
+.PHub__player-status {
+    margin: 1.5em 0;
+}
+
+.PHub__rules-box {
+    padding: .5em;
+    background-color: rgba(black, 30%);
 }

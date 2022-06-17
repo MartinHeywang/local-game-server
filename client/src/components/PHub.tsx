@@ -1,5 +1,5 @@
 import { FC, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useConnection, useSocket } from "../contexts/ServerContext";
 
 import Page from "./Page";
@@ -15,7 +15,7 @@ const PHub: FC = () => {
     const navigate = useNavigate();
 
     const [playersCount, setPlayersCount] = useState<number>();
-    const { player, join, edit, quit } = usePlayer();
+    const { player, join, edit, quit, ready } = usePlayer();
 
     const playerUsernameField = useRef<HTMLInputElement>(null);
     const playerErrorParagraph = useRef<HTMLParagraphElement>(null);
@@ -46,7 +46,16 @@ const PHub: FC = () => {
         return () => {
             socket.off("player:count", handle);
         };
-    });
+    }, []);
+
+    useEffect(() => {
+        // on unmount, set the player to be not ready
+        return () => {
+            if(!player) return;
+
+            ready(false);
+        }
+    }, [])
 
     function submitPlayer(event: React.FormEvent) {
         event.preventDefault();
@@ -61,6 +70,10 @@ const PHub: FC = () => {
         (!player ? join : edit)(username).catch((message: string) => {
             playerErrorParagraph.current!.textContent = message;
         });
+    }
+
+    function submitReady(_: React.MouseEvent<HTMLButtonElement>) {
+        ready(); // toggles the state
     }
 
     return (
@@ -84,7 +97,11 @@ const PHub: FC = () => {
                         <label htmlFor="hub-page-form-player-username">
                             {player ? "Modifier le pseudo:" : "Pseudo:"}
                         </label>
-                        <input id="hub-page-form-player-username" ref={playerUsernameField} />
+                        <input
+                            id="hub-page-form-player-username"
+                            ref={playerUsernameField}
+                            autoComplete="off"
+                        />
                         <button>{player ? "Modifier!" : "Rejoindre!"}</button>
                     </form>
 
@@ -94,7 +111,30 @@ const PHub: FC = () => {
                 </div>
                 <div className="PHub__game-zone">
                     <h2>Jouer!</h2>
-                    <p>Fonctionnalité (importante) à venir...</p>
+                    <div className="PHub__rules-box">
+                        <p>
+                            Avant de commencer, <Link to="/rules">lis les règles en cliquant ici</Link>
+                            &nbsp;!
+                        </p>
+                    </div>
+                    {player ? (
+                        <>
+                            <p className="PHub__player-status">
+                                Tu{" "}
+                                <strong>
+                                    {player.status === "ready" ? "es prêt" : "n'est pas encore prêt"}
+                                </strong>{" "}
+                                à jouer.
+                            </p>
+                            <button onClick={submitReady}>
+                                {player.status === "ready" ? "Je ne suis plus prêt" : "Je suis prêt!"}
+                            </button>
+                        </>
+                    ) : (
+                        <p>
+                            Avant de jouer, tu dois inscrire en tant que joueur dans l'encadré de gauche!
+                        </p>
+                    )}
                 </div>
             </div>
             <p className="PHub__players-count">

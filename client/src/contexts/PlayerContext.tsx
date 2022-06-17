@@ -144,6 +144,10 @@ const PlayerProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
     }
 
     function ready(ready?: boolean) {
+
+        console.log("call to the ready method of PlayerContext");
+        console.trace();
+
         // pass the ready argument in the event
         // but if undefined, pass the opposite of the current state
         // but if "player" is undefined, pass true
