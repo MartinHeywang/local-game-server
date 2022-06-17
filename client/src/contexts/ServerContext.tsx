@@ -1,5 +1,5 @@
 import React, { FC, useContext, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { socketIO } from "local-game-server-types";
 
@@ -63,6 +63,7 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
     const opening = useRef(false);
 
     const [urlParams] = useSearchParams();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (connection) return;
@@ -103,8 +104,22 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
         localStorage.setItem(PIN_STORAGE_KEY, connection.pin);
     }, [connection]);
 
+    useEffect(() => {
+        if(!socket || !connection) return;
+
+        const handle = () => {
+            setConnection(null);
+            setSocket(null);
+        }
+
+        socket.on("disconnect", handle);
+
+        return () => {
+            socket.off("disconnect", handle);
+        }
+    }, [socket, connection]);
+
     async function open(pin: string, force?: boolean) {
-        
         // the force option only works if a socket is already setup and connected
         // not if something else is already trying to connect
         if (opening.current === true) {
@@ -135,7 +150,9 @@ const ServerProvider: FC<{ children?: React.ReactNode }> = ({ children }) => {
             const address: string = socketInfo.address;
             const port: number = socketInfo.port;
 
-            const instance: socketIO.OurClientSocket = io(`http://${address}:${port}`).connect();
+            const instance: socketIO.OurClientSocket = io(`http://${address}:${port}`, {
+                reconnection: false,
+            }).connect();
 
             setConnection(connection);
             setSocket(instance);
