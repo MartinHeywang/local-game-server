@@ -25,8 +25,10 @@ function getFromID(req: Request, res: Response) {
     res.status(200).json(secure(player));
 }
 
+const WATCHING_ROOM_NAME = "players#watching";
+
 function watch(watching: boolean, socket: OurSocket) {
-    socket[watching ? "join" : "leave"]("players#watching");
+    socket[watching ? "join" : "leave"](WATCHING_ROOM_NAME);
     if (watching) socket.emit("player:count", players().length);
 }
 
@@ -196,7 +198,7 @@ export function registerPlayerOrder(io: OurServer, socket: OurSocket) {
 
     addPlayersListener(players => {
         // may not to emit anything if the socket is not in the room "watching"
-        io.to("watching").to(socket.id).emit("player:count", players.length);
+        io.to(WATCHING_ROOM_NAME).to(socket.id).emit("player:count", players.length);
     })
 }
 
